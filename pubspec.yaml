@@ -1,0 +1,40 @@
+name: news_app
+description: "A new Flutter project."
+
+# Prevent accidental publishing to pub.dev.
+publish_to: 'none'
+
+# The version of your application.
+version: 1.0.0+1
+
+# This is the SDK constraint you were missing.
+# It is at the top level (no indentation).
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+# This section is also at the top level.
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Your added packages
+  provider: ^6.1.2
+  intl: ^0.19.0
+
+  cupertino_icons: ^1.0.6
+
+# This section is also at the top level.
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^3.0.0
+
+# The following section is specific to Flutter and should be left as is.
+flutter:
+  uses-material-design: true
+
+  # To add assets to your application, add an assets section, like this:
+  # assets:
+  #   - images/a_dot_burr.jpeg
+  #   - images/a_dot_ham.jpeg
