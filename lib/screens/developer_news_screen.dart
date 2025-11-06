@@ -1,7 +1,6 @@
 // lib/screens/developer_news_screen.dart
-
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // ← ADDED THIS
+import 'package:intl/intl.dart';
 import 'package:news_app/models/dev_update.dart';
 import 'package:news_app/widgets/dev_story_card.dart';
 
@@ -13,11 +12,9 @@ class DeveloperNewsScreen extends StatefulWidget {
 }
 
 class _DeveloperNewsScreenState extends State<DeveloperNewsScreen> {
-  // We need to manage the "followed" state here.
-  // This is a dummy set of IDs. Later, this will come from the user's profile.
-  final Set<String> _followedStories = {
-    'story2'
-  }; // Following 'App Development' by default
+  // --- CHANGED: Now following two stories by default ---
+  final Set<String> _followedStories = {'story1', 'story2'};
+  // --- END OF CHANGE ---
 
   void _toggleFollow(String storyId) {
     setState(() {
@@ -71,42 +68,43 @@ class _DeveloperNewsScreenState extends State<DeveloperNewsScreen> {
 
             // --- Tab 2: Following ---
             // Shows a single feed of posts ONLY from followed stories
-            followedPosts.isEmpty
-                ? const Center(
-                    child: Text('You aren\'t following any stories yet.'),
-                  )
-                : ListView.builder(
-                    itemCount: followedPosts.length,
-                    itemBuilder: (context, index) {
-                      final post = followedPosts[index];
-                      // We can reuse the DevStoryCard's inner list tile style
-                      return Card(
-                        margin: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                post.title,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 16),
-                              ),
-                              Text(
-                                DateFormat.yMMMd()
-                                    .add_jm()
-                                    .format(post.publishedAt),
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(post.content),
-                            ],
+            if (followedPosts.isEmpty)
+              const Center(
+                child: Text('You aren\'t following any stories yet.'),
+              ),
+            if (followedPosts.isNotEmpty)
+              ListView.builder(
+                itemCount: followedPosts.length,
+                itemBuilder: (context, index) {
+                  final post = followedPosts[index];
+                  // We can reuse the DevStoryCard's inner list tile style
+                  return Card(
+                    margin:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            post.title,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16),
                           ),
-                        ),
-                      );
-                    },
-                  ),
+                          Text(
+                            DateFormat.yMMMd()
+                                .add_jm()
+                                .format(post.publishedAt),
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(post.content),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
           ],
         ),
       ),

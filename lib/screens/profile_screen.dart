@@ -10,12 +10,10 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Get the theme and auth providers
     final themeProvider = Provider.of<ThemeProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
-    final user = authProvider.user; // Get the dummy user
+    final user = authProvider.user;
 
-    // A fallback if the user is somehow null (shouldn't happen)
     if (user == null) {
       return const Scaffold(
         body: Center(child: Text('Error: No user found.')),
@@ -26,7 +24,6 @@ class ProfileScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Profile & Settings'),
         actions: [
-          // The new Logout Button
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () {
@@ -70,10 +67,23 @@ class ProfileScreen extends StatelessWidget {
             // --- Anchor Info Section ---
             if (user.isAnchor) ...[
               Text(
-                'Anchor Details',
+                'Anchor Dashboard',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 16),
+
+              // --- NEW: Anchor Stats Bar ---
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildStatColumn('Posts', user.totalPosts.toString()),
+                  _buildStatColumn('Followers', user.totalFollowers.toString()),
+                  _buildStatColumn('Total Likes', user.totalLikes.toString()),
+                ],
+              ),
+              // --- END: Anchor Stats Bar ---
+
+              const SizedBox(height: 16),
               _buildInfoCard(
                 context,
                 icon: Icons.cake_outlined,
@@ -143,6 +153,24 @@ class ProfileScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  // --- NEW: Helper for the stat column ---
+  Widget _buildStatColumn(String label, String value) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          value,
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 14, color: Colors.grey),
+        ),
+      ],
     );
   }
 

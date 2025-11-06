@@ -51,40 +51,36 @@ class _HomeScreenState extends State<HomeScreen> {
       body: Center(
         child: _widgetOptions.elementAt(_selectedIndex),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _onCreatePostTapped,
-        // --- CHANGE: Set elevation to 0 to remove shadow ---
-        elevation: 0.0,
-        highlightElevation: 0.0,
-        // --- END OF CHANGE ---
-        child: const Icon(Icons.add),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      // --- REMOVED: floatingActionButton and floatingActionButtonLocation ---
+
+      // --- MODIFIED: BottomAppBar ---
       bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        // --- CHANGE: Set notchMargin to 0 to make it flush ---
-        notchMargin: 0.0,
-        // --- END OF CHANGE ---
+        // Removed the shape and notchMargin
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // Use spaceAround to evenly space all 5 items
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: <Widget>[
-            // Left-side icons
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildBottomNavIcon(Icons.public_outlined, 'Global', 0),
-                _buildBottomNavIcon(Icons.people_outline, 'Local', 1),
-              ],
+            _buildBottomNavIcon(Icons.public_outlined, 'Global', 0),
+            _buildBottomNavIcon(Icons.people_outline, 'Local', 1),
+
+            // --- NEW: This is the replacement "+" button ---
+            ElevatedButton(
+              onPressed: _onCreatePostTapped,
+              style: ElevatedButton.styleFrom(
+                shape: const CircleBorder(),
+                padding: const EdgeInsets.all(12),
+                backgroundColor:
+                    Theme.of(context).colorScheme.primary, // Blue color
+                foregroundColor:
+                    Theme.of(context).colorScheme.onPrimary, // White "+"
+              ),
+              child: const Icon(Icons.add),
             ),
-            // Right-side icons
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildBottomNavIcon(
-                    Icons.developer_mode_outlined, 'Updates', 2),
-                _buildBottomNavIcon(Icons.person_outline, 'Profile', 3),
-              ],
-            ),
+            // --- END OF NEW BUTTON ---
+
+            // --- CHANGED: Label is now "Dev News" ---
+            _buildBottomNavIcon(Icons.developer_mode_outlined, 'Dev News', 2),
+            _buildBottomNavIcon(Icons.person_outline, 'Profile', 3),
           ],
         ),
       ),
@@ -93,6 +89,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Helper widget to build the icons
   Widget _buildBottomNavIcon(IconData icon, String label, int index) {
+    final bool isSelected = (_selectedIndex == index);
+    final Color color =
+        isSelected ? Theme.of(context).colorScheme.primary : Colors.grey;
+
     return MaterialButton(
       minWidth: 40,
       onPressed: () {
@@ -102,19 +102,12 @@ class _HomeScreenState extends State<HomeScreen> {
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            icon,
-            color: _selectedIndex == index
-                ? Theme.of(context).colorScheme.primary
-                : Colors.grey,
-          ),
+          Icon(icon, color: color),
           Text(
             label,
             style: TextStyle(
               fontSize: 12,
-              color: _selectedIndex == index
-                  ? Theme.of(context).colorScheme.primary
-                  : Colors.grey,
+              color: color,
             ),
           ),
         ],

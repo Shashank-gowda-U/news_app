@@ -14,6 +14,12 @@ class DummyUser {
   final List<String> followingAnchors; // List of anchor IDs
   final List<String> preferredTags;
 
+  // --- NEW STATS ---
+  final int totalPosts;
+  final int totalFollowers;
+  final int totalLikes;
+  // --- END OF NEW STATS ---
+
   DummyUser({
     required this.uid,
     required this.name,
@@ -24,6 +30,11 @@ class DummyUser {
     this.dateOfBirth,
     this.followingAnchors = const ['anchor_jane'], // Following Jane by default
     this.preferredTags = const ['science', 'technology'],
+    // --- NEW STATS ---
+    this.totalPosts = 0,
+    this.totalFollowers = 0,
+    this.totalLikes = 0,
+    // --- END OF NEW STATS ---
   });
 }
 
@@ -57,6 +68,11 @@ class AuthProvider extends ChangeNotifier {
       profilePicUrl: 'https://i.pravatar.cc/150?img=12',
       isAnchor: true, // Let's make the dummy user an anchor
       dateOfBirth: 'Jan 1, 2000',
+      // --- ADDED DUMMY STATS ---
+      totalPosts: 32,
+      totalFollowers: 125,
+      totalLikes: 1400,
+      // --- END OF DUMMY STATS ---
     );
     notifyListeners(); // Tell the app to rebuild
   }
