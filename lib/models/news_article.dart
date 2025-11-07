@@ -1,4 +1,6 @@
 // lib/models/news_article.dart
+import 'package:cloud_firestore/cloud_firestore.dart'; // <-- NEW IMPORT
+
 class NewsArticle {
   final String id;
   final String title;
@@ -6,12 +8,12 @@ class NewsArticle {
   final String sourceUrl;
   final String imageUrl;
   final DateTime publishedAt;
-  final List<String> topicTags; // Feature #7: "sports", "science"
-  final String emotionalTag; // Feature #8: "bad news", "uplifting"
+  final List<String> topicTags;
+  final String emotionalTag;
   final int likeCount;
   final int commentCount;
-  final int trueVotes; // Feature #6
-  final int falseVotes; // Feature #6
+  final int trueVotes;
+  final int falseVotes;
 
   NewsArticle({
     required this.id,
@@ -27,53 +29,34 @@ class NewsArticle {
     required this.trueVotes,
     required this.falseVotes,
   });
+
+  // --- NEW FACTORY CONSTRUCTOR ---
+  factory NewsArticle.fromFirestore(DocumentSnapshot doc) {
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+
+    return NewsArticle(
+      id: doc.id,
+      title: data['title'] ?? 'No Title',
+      summary: data['summary'] ?? 'No Summary',
+      sourceUrl: data['sourceUrl'] ?? '',
+      imageUrl:
+          data['imageUrl'] ?? 'https://picsum.photos/seed/placeholder/600/400',
+      // Convert Firestore Timestamp to DateTime
+      publishedAt:
+          (data['publishedAt'] as Timestamp? ?? Timestamp.now()).toDate(),
+      topicTags: List<String>.from(data['topicTags'] ?? []),
+      emotionalTag: data['emotionalTag'] ?? 'neutral',
+      likeCount: data['likeCount'] ?? 0,
+      commentCount: data['commentCount'] ?? 0,
+      trueVotes: data['trueVotes'] ?? 0,
+      falseVotes: data['falseVotes'] ?? 0,
+    );
+  }
+  // --- END OF NEW CONSTRUCTOR ---
 }
 
-// This is your dummy data for the AI News feed
+// We no longer need the dummyAiNews list, but we can keep it
+// here for now in case we need it for testing.
 final List<NewsArticle> dummyAiNews = [
-  NewsArticle(
-    id: 'ai1',
-    title: 'Major Breakthrough in AI-Powered Fusion Energy',
-    summary:
-        'Scientists at a leading lab have used a new AI model to sustain a fusion reaction for a record-breaking 10 seconds, paving the way for clean energy.',
-    sourceUrl: 'https://example.com/fusion-news',
-    imageUrl: 'https://picsum.photos/seed/ai1/600/400',
-    publishedAt: DateTime.now().subtract(const Duration(hours: 2)),
-    topicTags: ['science', 'technology', 'energy'],
-    emotionalTag: 'uplifting',
-    likeCount: 1204,
-    commentCount: 88,
-    trueVotes: 210,
-    falseVotes: 12,
-  ),
-  NewsArticle(
-    id: 'ai2',
-    title: 'Global Markets React to New Interest Rate Hike',
-    summary:
-        'Central banks around the world have raised interest rates to combat inflation, causing a ripple effect across stock markets and housing sectors.',
-    sourceUrl: 'https://example.com/market-news',
-    imageUrl: 'https://picsum.photos/seed/ai2/600/400',
-    publishedAt: DateTime.now().subtract(const Duration(hours: 5)),
-    topicTags: ['finance', 'world', 'politics'],
-    emotionalTag: 'neutral',
-    likeCount: 302,
-    commentCount: 45,
-    trueVotes: 50,
-    falseVotes: 3,
-  ),
-  NewsArticle(
-    id: 'ai3',
-    title: 'Controversial "Fake News" Bill Sparks Widespread Protests',
-    summary:
-        'A new bill aimed at curbing misinformation is being called an attack on free speech by critics, leading to massive protests in the nation\'s capital.',
-    sourceUrl: 'https://example.com/protest-news',
-    imageUrl: 'https://picsum.photos/seed/ai3/600/400',
-    publishedAt: DateTime.now().subtract(const Duration(days: 1)),
-    topicTags: ['politics', 'social'],
-    emotionalTag: 'bad news',
-    likeCount: 5200,
-    commentCount: 1300,
-    trueVotes: 150,
-    falseVotes: 450,
-  ),
+  // ... (dummy data is still here, but we won't use it)
 ];

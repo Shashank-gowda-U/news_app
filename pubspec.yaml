@@ -7,12 +7,9 @@ publish_to: 'none'
 # The version of your application.
 version: 1.0.0+1
 
-# This is the SDK constraint you were missing.
-# It is at the top level (no indentation).
 environment:
   sdk: '>=3.4.0 <4.0.0'
 
-# This section is also at the top level.
 dependencies:
   flutter:
     sdk: flutter
@@ -22,13 +19,12 @@ dependencies:
   intl: ^0.19.0
 
   cupertino_icons: ^1.0.6
-  firebase_core: ^4.2.1
-  firebase_auth: ^6.1.2
-  google_sign_in: ^7.2.0
-  cloud_firestore: ^6.1.0
-  firebase_storage: ^13.0.4
+  firebase_core: ^3.2.0
+  firebase_auth: ^5.1.2
+  google_sign_in: ^6.2.1
+  cloud_firestore: ^5.1.0
+  firebase_storage: ^12.1.0
 
-# This section is also at the top level.
 dev_dependencies:
   flutter_test:
     sdk: flutter
