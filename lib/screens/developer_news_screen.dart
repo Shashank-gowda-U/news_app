@@ -1,6 +1,6 @@
 // lib/screens/developer_news_screen.dart
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+
 import 'package:news_app/models/dev_update.dart';
 import 'package:news_app/widgets/dev_story_card.dart';
 
@@ -12,9 +12,7 @@ class DeveloperNewsScreen extends StatefulWidget {
 }
 
 class _DeveloperNewsScreenState extends State<DeveloperNewsScreen> {
-  // --- CHANGED: Now following two stories by default ---
   final Set<String> _followedStories = {'story1', 'story2'};
-  // --- END OF CHANGE ---
 
   void _toggleFollow(String storyId) {
     setState(() {
@@ -28,15 +26,11 @@ class _DeveloperNewsScreenState extends State<DeveloperNewsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Get a list of all posts from followed stories and sort them by date
-    final List<DevUpdatePost> followedPosts = dummyDevUpdates
+    // --- NEW: Filter the list of stories, not posts ---
+    final List<DevUpdateStory> followedStories = dummyDevUpdates
         .where((story) => _followedStories.contains(story.id))
-        .expand(
-            (story) => story.posts) // Get all posts from all followed stories
         .toList();
-
-    // Sort them so the newest is first
-    followedPosts.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+    // --- END OF NEW ---
 
     return DefaultTabController(
       length: 2,
@@ -53,7 +47,6 @@ class _DeveloperNewsScreenState extends State<DeveloperNewsScreen> {
         body: TabBarView(
           children: [
             // --- Tab 1: All Stories ---
-            // Shows the expandable list of all available stories
             ListView.builder(
               itemCount: dummyDevUpdates.length,
               itemBuilder: (context, index) {
@@ -66,42 +59,28 @@ class _DeveloperNewsScreenState extends State<DeveloperNewsScreen> {
               },
             ),
 
-            // --- Tab 2: Following ---
-            // Shows a single feed of posts ONLY from followed stories
-            if (followedPosts.isEmpty)
+            // --- Tab 2: Following (MODIFIED) ---
+            // Now shows expandable story cards, just like the "All Stories" tab
+            if (followedStories.isEmpty)
               const Center(
-                child: Text('You aren\'t following any stories yet.'),
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text(
+                    'You aren\'t following any stories yet. \nTap "Follow" on a story in the "All Stories" tab.',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               ),
-            if (followedPosts.isNotEmpty)
+            if (followedStories.isNotEmpty)
               ListView.builder(
-                itemCount: followedPosts.length,
+                itemCount: followedStories.length,
                 itemBuilder: (context, index) {
-                  final post = followedPosts[index];
-                  // We can reuse the DevStoryCard's inner list tile style
-                  return Card(
-                    margin:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            post.title,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 16),
-                          ),
-                          Text(
-                            DateFormat.yMMMd()
-                                .add_jm()
-                                .format(post.publishedAt),
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(post.content),
-                        ],
-                      ),
-                    ),
+                  final story = followedStories[index];
+                  // We reuse the same card widget
+                  return DevStoryCard(
+                    story: story,
+                    isFollowed: true, // We know this is true
+                    onFollowToggle: () => _toggleFollow(story.id),
                   );
                 },
               ),

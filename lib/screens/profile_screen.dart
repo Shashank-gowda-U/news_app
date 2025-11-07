@@ -4,6 +4,8 @@ import 'package:news_app/providers/auth_provider.dart';
 import 'package:news_app/screens/edit_tags_screen.dart';
 import 'package:news_app/theme/theme_provider.dart';
 import 'package:provider/provider.dart';
+// --- NEW IMPORT ---
+import 'package:news_app/models/user_model.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -12,11 +14,15 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
-    final user = authProvider.user;
+
+    // --- CHANGED: Now reads the UserModel from the provider ---
+    final UserModel? user = authProvider.user;
+    // --- END OF CHANGE ---
 
     if (user == null) {
+      // This can happen for a brief moment during login/logout
       return const Scaffold(
-        body: Center(child: Text('Error: No user found.')),
+        body: Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -24,16 +30,23 @@ class ProfileScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Profile & Settings'),
         actions: [
+          // The Logout Button
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () {
-              Provider.of<AuthProvider>(context, listen: false).logout();
+              // --- CHANGED: Calls the real sign out method ---
+              Provider.of<AuthProvider>(context, listen: false).signOut();
+              // --- END OF CHANGE ---
             },
             tooltip: 'Log Out',
           ),
         ],
       ),
       body: SingleChildScrollView(
+        // ... the rest of this file is IDENTICAL ...
+        // It's all correct because our new UserModel
+        // has the same property names as the old DummyUser.
+        // (e.g., user.name, user.email, user.isAnchor, etc.)
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -71,8 +84,6 @@ class ProfileScreen extends StatelessWidget {
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 16),
-
-              // --- NEW: Anchor Stats Bar ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
@@ -81,8 +92,6 @@ class ProfileScreen extends StatelessWidget {
                   _buildStatColumn('Total Likes', user.totalLikes.toString()),
                 ],
               ),
-              // --- END: Anchor Stats Bar ---
-
               const SizedBox(height: 16),
               _buildInfoCard(
                 context,

@@ -12,36 +12,41 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final _nameController = TextEditingController(text: 'Logan');
-  final _emailController = TextEditingController(text: 'logan@example.com');
-  final _passwordController = TextEditingController(text: 'password123');
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   String _selectedProfilePic = '';
+  bool _isLoading = false;
 
-  void _register() {
+  void _register() async {
     if (_selectedProfilePic.isEmpty) {
-      // Show an error if no profile pic is selected
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a profile picture.')),
       );
       return;
     }
 
-    Provider.of<AuthProvider>(context, listen: false).register(
+    setState(() {
+      _isLoading = true;
+    });
+
+    await Provider.of<AuthProvider>(context, listen: false).registerWithEmail(
       _nameController.text,
       _emailController.text,
       _passwordController.text,
       _selectedProfilePic,
     );
 
-    // Pop back to the login screen, which will then redirect to home
-    Navigator.of(context).pop();
+    // We only pop if the registration was successful (widget is still mounted)
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-    // Set default selected pic
     if (_selectedProfilePic.isEmpty) {
       _selectedProfilePic = authProvider.availableProfilePics[0];
     }
@@ -93,19 +98,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
               controller: _passwordController,
               obscureText: true,
               decoration: const InputDecoration(
-                labelText: 'Password',
+                labelText: 'Password (min. 6 characters)',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.lock_outline),
               ),
             ),
             const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _register,
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 50),
+            if (_isLoading)
+              const Center(child: CircularProgressIndicator())
+            else
+              ElevatedButton(
+                onPressed: _register,
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 50),
+                ),
+                child: const Text('Register'),
               ),
-              child: const Text('Register'),
-            ),
           ],
         ),
       ),

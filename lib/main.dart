@@ -5,9 +5,24 @@ import 'package:news_app/screens/auth/welcome_screen.dart';
 import 'package:news_app/theme/theme_provider.dart';
 import 'package:provider/provider.dart';
 
-void main() {
+// --- NEW IMPORTS ---
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+// --- END OF NEW IMPORTS ---
+
+void main() async {
+  // --- NEW: Ensure Flutter is ready ---
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // --- NEW: Initialize Firebase ---
+  // This line connects to your Firebase project using the
+  // lib/firebase_options.dart file that was generated.
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  // --- END OF NEW ---
+
   runApp(
-    // We use MultiProvider to provide both Theme and Auth state
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (context) => ThemeProvider()),
@@ -30,9 +45,7 @@ class MyApp extends StatelessWidget {
       theme: AppThemes.lightTheme,
       darkTheme: AppThemes.darkTheme,
       themeMode: themeProvider.themeMode,
-      // --- CHANGE HERE: The app now starts at the WelcomeScreen ---
       home: const WelcomeScreen(),
-      // --- END OF CHANGE ---
       debugShowCheckedModeBanner: false,
     );
   }
