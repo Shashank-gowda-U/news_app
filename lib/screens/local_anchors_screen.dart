@@ -3,15 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:news_app/models/local_anchor_post.dart';
 import 'package:news_app/screens/detail/post_detail_screen.dart';
 import 'package:news_app/widgets/filter_modal.dart';
-// --- NEW IMPORT ---
 import 'package:news_app/widgets/location_filter_modal.dart';
-// --- END NEW IMPORT ---
 import 'package:news_app/widgets/local_anchor_post_card.dart';
+
+// --- NEW IMPORTS ---
+import 'package:cloud_firestore/cloud_firestore.dart';
+// --- END OF NEW IMPORTS ---
 
 class LocalAnchorsScreen extends StatelessWidget {
   const LocalAnchorsScreen({super.key});
 
-  // This function now only shows the SORT filter
   void _showSortFilter(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -22,7 +23,6 @@ class LocalAnchorsScreen extends StatelessWidget {
     );
   }
 
-  // --- NEW FUNCTION for the location modal ---
   void _showLocationFilter(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -32,7 +32,6 @@ class LocalAnchorsScreen extends StatelessWidget {
       },
     );
   }
-  // --- END NEW FUNCTION ---
 
   @override
   Widget build(BuildContext context) {
@@ -42,14 +41,12 @@ class LocalAnchorsScreen extends StatelessWidget {
         appBar: AppBar(
           title: const Text('Local Anchors'),
           actions: [
-            // --- CHANGED: onPressed calls _showLocationFilter ---
             IconButton(
               icon: const Icon(Icons.location_on_outlined),
               onPressed: () {
                 _showLocationFilter(context);
               },
             ),
-            // --- CHANGED: onPressed calls _showSortFilter ---
             IconButton(
               icon: const Icon(Icons.filter_list),
               onPressed: () {
@@ -66,11 +63,11 @@ class LocalAnchorsScreen extends StatelessWidget {
         ),
         body: TabBarView(
           children: [
-            // --- Tab 1: Following ---
+            // --- Tab 1: Following (Still dummy data) ---
             ListView.builder(
               itemCount: 1,
               itemBuilder: (context, index) {
-                final post = dummyLocalNews[0];
+                final post = dummyLocalNews[0]; // Just Jane
                 return GestureDetector(
                   onTap: () {
                     Navigator.of(context).push(MaterialPageRoute(
@@ -81,18 +78,40 @@ class LocalAnchorsScreen extends StatelessWidget {
                 );
               },
             ),
-            // --- Tab 2: All ---
-            ListView.builder(
-              itemCount: dummyLocalNews.length,
-              itemBuilder: (context, index) {
-                final post = dummyLocalNews[index];
-                return GestureDetector(
-                  onTap: () {
-                    Navigator.of(context).push(MaterialPageRoute(
-                      builder: (context) => PostDetailScreen(post: post),
-                    ));
+
+            // --- Tab 2: All (NOW LIVE) ---
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('local_posts')
+                  .orderBy('publishedAt', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return const Center(child: Text('Something went wrong.'));
+                }
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.data == null || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text('No local posts found.'));
+                }
+
+                final List<DocumentSnapshot> documents = snapshot.data!.docs;
+
+                return ListView.builder(
+                  itemCount: documents.length,
+                  itemBuilder: (context, index) {
+                    final post =
+                        LocalAnchorPost.fromFirestore(documents[index]);
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.of(context).push(MaterialPageRoute(
+                          builder: (context) => PostDetailScreen(post: post),
+                        ));
+                      },
+                      child: LocalAnchorPostCard(post: post),
+                    );
                   },
-                  child: LocalAnchorPostCard(post: post),
                 );
               },
             ),

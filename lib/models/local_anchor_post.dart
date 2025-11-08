@@ -1,4 +1,6 @@
 // lib/models/local_anchor_post.dart
+import 'package:cloud_firestore/cloud_firestore.dart'; // <-- NEW IMPORT
+
 class LocalAnchorPost {
   final String id;
   final String anchorId;
@@ -25,9 +27,29 @@ class LocalAnchorPost {
     required this.likeCount,
     required this.commentCount,
   });
+
+  // --- NEW FACTORY CONSTRUCTOR ---
+  factory LocalAnchorPost.fromFirestore(DocumentSnapshot doc) {
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    return LocalAnchorPost(
+      id: doc.id,
+      anchorId: data['anchorId'] ?? '',
+      anchorName: data['anchorName'] ?? '',
+      anchorProfilePicUrl: data['anchorProfilePicUrl'] ?? '',
+      content: data['content'] ?? '',
+      imageUrl: data['imageUrl'], // Can be null
+      publishedAt:
+          (data['publishedAt'] as Timestamp? ?? Timestamp.now()).toDate(),
+      location: data['location'] ?? 'Unknown',
+      tags: List<String>.from(data['tags'] ?? []),
+      likeCount: data['likeCount'] ?? 0,
+      commentCount: data['commentCount'] ?? 0,
+    );
+  }
+  // --- END OF NEW CONSTRUCTOR ---
 }
 
-// Dummy data for the Local Anchors feed
+// We will keep this dummy data for the "Following" tab for now
 final List<LocalAnchorPost> dummyLocalNews = [
   LocalAnchorPost(
     id: 'local1',
