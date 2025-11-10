@@ -1,5 +1,6 @@
 // lib/models/local_anchor_post.dart
-import 'package:cloud_firestore/cloud_firestore.dart'; // <-- NEW IMPORT
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart'; // <-- Added for DateTime
 
 class LocalAnchorPost {
   final String id;
@@ -7,7 +8,8 @@ class LocalAnchorPost {
   final String anchorName;
   final String anchorProfilePicUrl;
   final String content;
-  final String? imageUrl; // Optional image
+  final String? imageUrl;
+  final String? cloudinaryPublicId;
   final DateTime publishedAt;
   final String location;
   final List<String> tags;
@@ -21,6 +23,7 @@ class LocalAnchorPost {
     required this.anchorProfilePicUrl,
     required this.content,
     this.imageUrl,
+    this.cloudinaryPublicId,
     required this.publishedAt,
     required this.location,
     required this.tags,
@@ -28,7 +31,6 @@ class LocalAnchorPost {
     required this.commentCount,
   });
 
-  // --- NEW FACTORY CONSTRUCTOR ---
   factory LocalAnchorPost.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     return LocalAnchorPost(
@@ -37,7 +39,8 @@ class LocalAnchorPost {
       anchorName: data['anchorName'] ?? '',
       anchorProfilePicUrl: data['anchorProfilePicUrl'] ?? '',
       content: data['content'] ?? '',
-      imageUrl: data['imageUrl'], // Can be null
+      imageUrl: data['imageUrl'],
+      cloudinaryPublicId: data['cloudinaryPublicId'],
       publishedAt:
           (data['publishedAt'] as Timestamp? ?? Timestamp.now()).toDate(),
       location: data['location'] ?? 'Unknown',
@@ -46,10 +49,9 @@ class LocalAnchorPost {
       commentCount: data['commentCount'] ?? 0,
     );
   }
-  // --- END OF NEW CONSTRUCTOR ---
-}
+} // <-- *** THE CLASS ENDS HERE ***
 
-// We will keep this dummy data for the "Following" tab for now
+// --- FIX: The list must be defined OUTSIDE the class ---
 final List<LocalAnchorPost> dummyLocalNews = [
   LocalAnchorPost(
     id: 'local1',

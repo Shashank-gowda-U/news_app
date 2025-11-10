@@ -1,5 +1,5 @@
 // lib/models/news_article.dart
-import 'package:cloud_firestore/cloud_firestore.dart'; // <-- NEW IMPORT
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class NewsArticle {
   final String id;
@@ -30,7 +30,6 @@ class NewsArticle {
     required this.falseVotes,
   });
 
-  // --- NEW FACTORY CONSTRUCTOR ---
   factory NewsArticle.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
 
@@ -41,7 +40,6 @@ class NewsArticle {
       sourceUrl: data['sourceUrl'] ?? '',
       imageUrl:
           data['imageUrl'] ?? 'https://picsum.photos/seed/placeholder/600/400',
-      // Convert Firestore Timestamp to DateTime
       publishedAt:
           (data['publishedAt'] as Timestamp? ?? Timestamp.now()).toDate(),
       topicTags: List<String>.from(data['topicTags'] ?? []),
@@ -52,11 +50,24 @@ class NewsArticle {
       falseVotes: data['falseVotes'] ?? 0,
     );
   }
-  // --- END OF NEW CONSTRUCTOR ---
-}
+} // <-- *** THE CLASS ENDS HERE ***
 
-// We no longer need the dummyAiNews list, but we can keep it
-// here for now in case we need it for testing.
+// --- FIX: The list must be defined OUTSIDE the class ---
 final List<NewsArticle> dummyAiNews = [
-  // ... (dummy data is still here, but we won't use it)
+  NewsArticle(
+    id: 'ai1',
+    title: 'Major Breakthrough in AI-Powered Fusion Energy',
+    summary:
+        'Scientists at a leading lab have used a new AI model to sustain a fusion reaction for a record-breaking 10 seconds, paving the way for clean energy.',
+    sourceUrl: 'https://example.com/fusion-news',
+    imageUrl: 'https://picsum.photos/seed/ai1/600/400',
+    publishedAt: DateTime.now().subtract(const Duration(hours: 2)),
+    topicTags: ['science', 'technology', 'energy'],
+    emotionalTag: 'uplifting',
+    likeCount: 1204,
+    commentCount: 88,
+    trueVotes: 210,
+    falseVotes: 12,
+  ),
+  // ... (the other dummy posts)
 ];

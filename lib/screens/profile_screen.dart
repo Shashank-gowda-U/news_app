@@ -1,10 +1,10 @@
 // lib/screens/profile_screen.dart
 import 'package:flutter/material.dart';
 import 'package:news_app/providers/auth_provider.dart';
+import 'package:news_app/screens/create/my_posts_screen.dart'; // <-- NEW IMPORT
 import 'package:news_app/screens/edit_tags_screen.dart';
 import 'package:news_app/theme/theme_provider.dart';
 import 'package:provider/provider.dart';
-// --- NEW IMPORT ---
 import 'package:news_app/models/user_model.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -14,13 +14,9 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
-
-    // --- CHANGED: Now reads the UserModel from the provider ---
     final UserModel? user = authProvider.user;
-    // --- END OF CHANGE ---
 
     if (user == null) {
-      // This can happen for a brief moment during login/logout
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
@@ -30,23 +26,16 @@ class ProfileScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Profile & Settings'),
         actions: [
-          // The Logout Button
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () {
-              // --- CHANGED: Calls the real sign out method ---
               Provider.of<AuthProvider>(context, listen: false).signOut();
-              // --- END OF CHANGE ---
             },
             tooltip: 'Log Out',
           ),
         ],
       ),
       body: SingleChildScrollView(
-        // ... the rest of this file is IDENTICAL ...
-        // It's all correct because our new UserModel
-        // has the same property names as the old DummyUser.
-        // (e.g., user.name, user.email, user.isAnchor, etc.)
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -93,6 +82,22 @@ class ProfileScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
+
+              // --- NEW "MY POSTS" BUTTON ---
+              _buildInfoCard(
+                context,
+                icon: Icons.article_outlined,
+                title: 'My Posts',
+                subtitle: 'Edit or delete your published posts',
+                onTap: () {
+                  Navigator.of(context).push(MaterialPageRoute(
+                    builder: (context) => const MyPostsScreen(),
+                  ));
+                },
+              ),
+              // --- END OF NEW BUTTON ---
+
+              const SizedBox(height: 16),
               _buildInfoCard(
                 context,
                 icon: Icons.cake_outlined,
@@ -102,7 +107,7 @@ class ProfileScreen extends StatelessWidget {
               const Divider(height: 32),
             ],
 
-            // --- Preferences Section ---
+            // --- Preferences Section (rest of file is the same) ---
             Text(
               'My Preferences',
               style: Theme.of(context).textTheme.titleLarge,
@@ -130,8 +135,6 @@ class ProfileScreen extends StatelessWidget {
               },
             ),
             const Divider(height: 32),
-
-            // --- App Settings Section ---
             Text(
               'App Settings',
               style: Theme.of(context).textTheme.titleLarge,
@@ -165,7 +168,6 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  // --- NEW: Helper for the stat column ---
   Widget _buildStatColumn(String label, String value) {
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -183,7 +185,6 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  // Helper widget to build the info cards
   Widget _buildInfoCard(
     BuildContext context, {
     required IconData icon,

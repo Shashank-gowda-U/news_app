@@ -1,5 +1,20 @@
 // lib/models/dev_update.dart
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+
+// Helper to convert string to icon
+IconData _getIconFromString(String iconName) {
+  switch (iconName) {
+    case 'sports_soccer':
+      return Icons.sports_soccer;
+    case 'developer_mode':
+      return Icons.developer_mode;
+    case 'sports_cricket':
+      return Icons.sports_cricket;
+    default:
+      return Icons.article;
+  }
+}
 
 // Represents a single post within a story (e.g., "Day 1 Update")
 class DevUpdatePost {
@@ -14,6 +29,18 @@ class DevUpdatePost {
     required this.content,
     required this.publishedAt,
   });
+
+  // --- NEW: fromFirestore constructor ---
+  factory DevUpdatePost.fromFirestore(DocumentSnapshot doc) {
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    return DevUpdatePost(
+      id: doc.id,
+      title: data['title'] ?? 'No Title',
+      content: data['content'] ?? 'No Content',
+      publishedAt:
+          (data['publishedAt'] as Timestamp? ?? Timestamp.now()).toDate(),
+    );
+  }
 }
 
 // Represents the overall story (e.g., "Football WC Coverage")
@@ -22,73 +49,28 @@ class DevUpdateStory {
   final String title;
   final String description;
   final IconData icon;
-  final List<DevUpdatePost> posts;
+  // --- This is now just an ID, we will fetch posts separately ---
+  // final List<DevUpdatePost> posts;
 
   DevUpdateStory({
     required this.id,
     required this.title,
     required this.description,
     required this.icon,
-    required this.posts,
+    // required this.posts,
   });
+
+  // --- NEW: fromFirestore constructor ---
+  factory DevUpdateStory.fromFirestore(DocumentSnapshot doc) {
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    return DevUpdateStory(
+      id: doc.id,
+      title: data['title'] ?? 'No Title',
+      description: data['description'] ?? 'No Description',
+      icon: _getIconFromString(data['icon'] ?? 'article'),
+    );
+  }
 }
 
-// --- DUMMY DATA ---
-
-final List<DevUpdateStory> dummyDevUpdates = [
-  DevUpdateStory(
-    id: 'story1',
-    title: 'Football WC 2026 Coverage',
-    description: 'Daily updates and commentary on the World Cup.',
-    icon: Icons.sports_soccer,
-    posts: [
-      DevUpdatePost(
-        id: 'p1a',
-        title: 'Day 1: Opening Ceremony',
-        content: 'The ceremony was spectacular, with all teams present.',
-        publishedAt: DateTime.now().subtract(const Duration(days: 2)),
-      ),
-      DevUpdatePost(
-        id: 'p1b',
-        title: 'Day 2: First Matches',
-        content: 'Brazil vs Germany was a nail-biter, ending in a 2-2 draw.',
-        publishedAt: DateTime.now().subtract(const Duration(days: 1)),
-      ),
-    ],
-  ),
-  DevUpdateStory(
-    id: 'story2',
-    title: 'App Development Log',
-    description: 'Follow along with the development of this app.',
-    icon: Icons.developer_mode,
-    posts: [
-      DevUpdatePost(
-        id: 'p2a',
-        title: 'v1.0.1: UI Refinements',
-        content:
-            'Added new filter options and redesigned the developer updates tab.',
-        publishedAt: DateTime.now().subtract(const Duration(hours: 1)),
-      ),
-      DevUpdatePost(
-        id: 'p2b',
-        title: 'v1.0.0: Initial UI Scaffolding',
-        content: 'Successfully built the main UI, login flow, and navigation.',
-        publishedAt: DateTime.now().subtract(const Duration(days: 1)),
-      ),
-    ],
-  ),
-  DevUpdateStory(
-    id: 'story3',
-    title: 'Cricket WC 2027',
-    description: 'Live commentary and news from the Cricket World Cup.',
-    icon: Icons.sports_cricket,
-    posts: [
-      DevUpdatePost(
-        id: 'p3a',
-        title: 'Team Previews',
-        content: 'India is looking strong, but Australia is the favorite.',
-        publishedAt: DateTime.now().subtract(const Duration(hours: 5)),
-      ),
-    ],
-  ),
-];
+// We no longer need this dummy data
+// final List<DevUpdateStory> dummyDevUpdates = [ ... ];

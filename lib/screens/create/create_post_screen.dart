@@ -1,14 +1,18 @@
 // lib/screens/create/create_post_screen.dart
-import 'dart.io'; // <-- NEW IMPORT
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart'; // <-- NEW IMPORT
-import 'package:cloudinary_public/cloudinary_public.dart'; // <-- NEW IMPORT
-import 'package:cloud_firestore/cloud_firestore.dart'; // <-- NEW IMPORT
-import 'package:provider/provider.dart'; // <-- NEW IMPORT
-import 'package:news_app/providers/auth_provider.dart'; // <-- NEW IMPORT
+import 'package:image_picker/image_picker.dart';
+import 'package:cloudinary_public/cloudinary_public.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import 'package:news_app/providers/auth_provider.dart';
+import 'package:news_app/models/local_anchor_post.dart';
 
 class CreatePostScreen extends StatefulWidget {
-  const CreatePostScreen({super.key});
+  // --- NEW: Accept an optional post to edit ---
+  final LocalAnchorPost? postToEdit;
+  const CreatePostScreen({super.key, this.postToEdit});
+  // --- END OF NEW ---
 
   @override
   State<CreatePostScreen> createState() => _CreatePostScreenState();
@@ -16,13 +20,8 @@ class CreatePostScreen extends StatefulWidget {
 
 class _CreatePostScreenState extends State<CreatePostScreen> {
   // --- ADD YOUR CLOUDINARY DETAILS HERE ---
-  // (Find these on your Cloudinary Dashboard)
-  final String _cloudName = "dpnbaiwbw";
-  final String _uploadPreset = "news";
-  // For signed uploads (more secure, but requires backend)
-  // final String _apiKey = "YOUR_API_KEY";
-  // final String _apiSecret = "YOUR_API_SECRET";
-
+  final String _cloudName = "YOUR_CLOUD_NAME";
+  final String _uploadPreset = "YOUR_UPLOAD_PRESET";
   // --- End of Cloudinary Details ---
 
   late final CloudinaryPublic _cloudinary;
@@ -37,13 +36,25 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   ];
   final Set<String> _selectedTags = {};
 
-  XFile? _selectedImage; // This will hold the image file
+  XFile? _selectedImage; // This will hold a NEWLY picked image file
+  String? _existingImageUrl; // This will hold the URL of an existing image
   bool _isLoading = false;
+  late bool _isEditMode; // To check if we are creating or editing
 
   @override
   void initState() {
     super.initState();
     _cloudinary = CloudinaryPublic(_cloudName, _uploadPreset, cache: false);
+
+    // --- NEW: Check if we are in Edit Mode ---
+    _isEditMode = (widget.postToEdit != null);
+    if (_isEditMode) {
+      // Pre-fill all the fields from the post we're editing
+      _contentController.text = widget.postToEdit!.content;
+      _selectedTags.addAll(widget.postToEdit!.tags);
+      _existingImageUrl = widget.postToEdit!.imageUrl;
+    }
+    // --- END OF NEW ---
   }
 
   // Function to pick an image
@@ -51,11 +62,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
     setState(() {
-      _selectedImage = image;
+      _selectedImage = image; // User picked a new image
+      _existingImageUrl = null; // Remove the old image preview
     });
   }
 
-  // Function to upload the post
+  // --- MODIFIED: This function now handles CREATE and UPDATE ---
   Future<void> _uploadPost() async {
     if (_contentController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -70,11 +82,17 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     });
 
     try {
-      String? imageUrl;
-      String? publicId;
+      String? imageUrl = _existingImageUrl; // Start with the old image URL
+      String? publicId = widget.postToEdit?.cloudinaryPublicId;
 
-      // 1. Upload image to Cloudinary (if one was selected)
+      // 1. Upload new image IF the user picked one
       if (_selectedImage != null) {
+        // --- ERROR WAS HERE ---
+        // We will NOT attempt to delete the old file.
+        // It will just become an "orphan" in Cloudinary.
+        // --- END OF FIX ---
+
+        // Now, upload the new one
         CloudinaryResponse response = await _cloudinary.uploadFile(
           CloudinaryFile.fromFile(_selectedImage!.path,
               resourceType: CloudinaryResourceType.Image),
@@ -86,33 +104,47 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       // 2. Get current user details
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final user = authProvider.user;
+      if (user == null) throw Exception("No user logged in.");
 
-      if (user == null) {
-        throw Exception("No user logged in.");
-      }
-
-      // 3. Save post data to Firestore
-      await FirebaseFirestore.instance.collection('local_posts').add({
+      // 3. Prepare the data map
+      final Map<String, dynamic> postData = {
         'content': _contentController.text,
         'tags': _selectedTags.toList(),
-        'imageUrl': imageUrl, // This will be null if no image was picked
-        'cloudinaryPublicId': publicId, // Good to save this for future deletes
-        'publishedAt': Timestamp.now(), // Use server timestamp
+        'imageUrl': imageUrl,
+        'cloudinaryPublicId': publicId,
+        'publishedAt': Timestamp.now(), // Always update timestamp on edit
         'anchorId': user.uid,
         'anchorName': user.name,
         'anchorProfilePicUrl': user.profilePicUrl,
         'location': user.location,
-        'likeCount': 0,
-        'commentCount': 0,
-      });
+        // We don't reset counts on edit
+      };
 
-      // 4. Update user's total post count
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .update({
-        'totalPosts': FieldValue.increment(1),
-      });
+      // 4. Save to Firestore (Update or Add)
+      if (_isEditMode) {
+        // --- UPDATE existing post ---
+        await FirebaseFirestore.instance
+            .collection('local_posts')
+            .doc(widget.postToEdit!.id)
+            .update(postData);
+      } else {
+        // --- ADD new post ---
+        // Add counts only for new posts
+        postData['likeCount'] = 0;
+        postData['commentCount'] = 0;
+
+        await FirebaseFirestore.instance
+            .collection('local_posts')
+            .add(postData);
+
+        // Update user's total post count only when creating
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .update({
+          'totalPosts': FieldValue.increment(1),
+        });
+      }
 
       if (mounted) {
         Navigator.of(context).pop(); // Go back after success
@@ -129,13 +161,36 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
   }
 
+  // --- NEW: Helper to show the image preview ---
+  Widget _buildImagePreview() {
+    // Case 1: User just picked a new image
+    if (_selectedImage != null) {
+      return Image.file(
+        File(_selectedImage!.path),
+        width: double.infinity,
+        height: 200,
+        fit: BoxFit.cover,
+      );
+    }
+    // Case 2: We are editing and there's an existing image
+    if (_existingImageUrl != null) {
+      return Image.network(
+        _existingImageUrl!,
+        width: double.infinity,
+        height: 200,
+        fit: BoxFit.cover,
+      );
+    }
+    // Case 3: No image
+    return const SizedBox.shrink();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create New Post'),
+        title: Text(_isEditMode ? 'Edit Post' : 'Create New Post'),
         actions: [
-          // Show a loading spinner or the Post button
           if (_isLoading)
             const Padding(
               padding: EdgeInsets.all(16.0),
@@ -148,7 +203,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           else
             TextButton(
               onPressed: _uploadPost,
-              child: const Text('Post'),
+              child: Text(_isEditMode ? 'Update' : 'Post'),
             ),
         ],
       ),
@@ -166,24 +221,22 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               autofocus: true,
             ),
 
-            // --- NEW: Image Preview ---
-            if (_selectedImage != null)
+            // --- MODIFIED: Image Preview Section ---
+            if (_selectedImage != null || _existingImageUrl != null)
               Stack(
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.file(
-                      File(_selectedImage!.path),
-                      width: double.infinity,
-                      height: 200,
-                      fit: BoxFit.cover,
-                    ),
+                    child: _buildImagePreview(),
                   ),
                   Positioned(
                     top: 8,
                     right: 8,
                     child: GestureDetector(
-                      onTap: () => setState(() => _selectedImage = null),
+                      onTap: () => setState(() {
+                        _selectedImage = null;
+                        _existingImageUrl = null;
+                      }),
                       child: Container(
                         decoration: const BoxDecoration(
                           color: Colors.black54,
@@ -195,13 +248,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   )
                 ],
               ),
-            // --- END OF PREVIEW ---
+            // --- END OF MODIFIED SECTION ---
 
             const Divider(),
             OutlinedButton.icon(
-              onPressed: _pickImage, // Call our new function
+              onPressed: _pickImage,
               icon: const Icon(Icons.image_outlined),
-              label: Text(_selectedImage == null
+              label: Text(_selectedImage == null && _existingImageUrl == null
                   ? 'Add Image (Optional)'
                   : 'Change Image'),
               style: OutlinedButton.styleFrom(
