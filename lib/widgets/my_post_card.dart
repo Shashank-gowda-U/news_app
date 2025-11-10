@@ -4,10 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:news_app/models/local_anchor_post.dart';
 import 'package:news_app/screens/create/create_post_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:news_app/providers/auth_provider.dart';
 
 class MyPostCard extends StatelessWidget {
   final LocalAnchorPost post;
+  // --- THIS IS THE FIX ---
   const MyPostCard({super.key, required this.post});
+  // --- END OF FIX ---
 
   // --- Function to show the Edit/Delete options ---
   void _showOptions(BuildContext context) {
@@ -79,13 +83,16 @@ class MyPostCard extends StatelessWidget {
           .doc(post.id)
           .delete();
 
-      // --- THIS IS THE NEW LINE TO ADD ---
       // 2. Decrement the user's post count
       await FirebaseFirestore.instance
           .collection('users')
           .doc(post.anchorId) // Use the anchorId from the post
           .update({'totalPosts': FieldValue.increment(-1)});
-      // --- END OF NEW LINE ---
+
+      // 3. Refresh the AuthProvider's local user data
+      if (context.mounted) {
+        await Provider.of<AuthProvider>(context, listen: false).refreshUser();
+      }
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

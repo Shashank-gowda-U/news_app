@@ -63,6 +63,20 @@ class AuthProvider extends ChangeNotifier {
     }
     notifyListeners();
   }
+  // lib/providers/auth_provider.dart
+
+  // ... (after _fetchUserModel)
+
+  // --- NEW FUNCTION ---
+  // Call this to manually refetch user data from Firestore
+  Future<void> refreshUser() async {
+    if (_firebaseUser != null) {
+      await _fetchUserModel(_firebaseUser!.uid);
+    }
+  }
+  // --- END OF NEW FUNCTION ---
+
+  // ... (rest of the file)
 
   // --- PUBLIC METHODS FOR UI TO CALL ---
 

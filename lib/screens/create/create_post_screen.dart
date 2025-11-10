@@ -9,10 +9,8 @@ import 'package:news_app/providers/auth_provider.dart';
 import 'package:news_app/models/local_anchor_post.dart';
 
 class CreatePostScreen extends StatefulWidget {
-  // --- NEW: Accept an optional post to edit ---
   final LocalAnchorPost? postToEdit;
   const CreatePostScreen({super.key, this.postToEdit});
-  // --- END OF NEW ---
 
   @override
   State<CreatePostScreen> createState() => _CreatePostScreenState();
@@ -26,44 +24,53 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   late final CloudinaryPublic _cloudinary;
   final _contentController = TextEditingController();
-  final List<String> _availableTags = [
-    'traffic',
-    'local',
-    'alert',
-    'community',
-    'good news',
-    'event'
-  ];
+
+  List<String> _availableTags = [];
+  bool _tagsAreLoading = true;
+
   final Set<String> _selectedTags = {};
 
-  XFile? _selectedImage; // This will hold a NEWLY picked image file
-  String? _existingImageUrl; // This will hold the URL of an existing image
+  XFile? _selectedImage;
+  String? _existingImageUrl;
   bool _isLoading = false;
-  late bool _isEditMode; // To check if we are creating or editing
+  late bool _isEditMode;
 
   @override
   void initState() {
     super.initState();
     _cloudinary = CloudinaryPublic(_cloudName, _uploadPreset, cache: false);
-
-    // --- NEW: Check if we are in Edit Mode ---
     _isEditMode = (widget.postToEdit != null);
     if (_isEditMode) {
-      // Pre-fill all the fields from the post we're editing
       _contentController.text = widget.postToEdit!.content;
       _selectedTags.addAll(widget.postToEdit!.tags);
       _existingImageUrl = widget.postToEdit!.imageUrl;
     }
-    // --- END OF NEW ---
+    _loadTags(); // Load tags from Firestore
   }
 
-  // Function to pick an image
+  Future<void> _loadTags() async {
+    try {
+      final snapshot =
+          await FirebaseFirestore.instance.collection('tags').get();
+      final tags = snapshot.docs.map((doc) => doc['name'] as String).toList();
+      setState(() {
+        _availableTags = tags;
+        _tagsAreLoading = false;
+      });
+    } catch (e) {
+      // Handle error
+      setState(() {
+        _tagsAreLoading = false;
+      });
+    }
+  }
+
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
     setState(() {
-      _selectedImage = image; // User picked a new image
-      _existingImageUrl = null; // Remove the old image preview
+      _selectedImage = image;
+      _existingImageUrl = null;
     });
   }
 
@@ -82,17 +89,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     });
 
     try {
-      String? imageUrl = _existingImageUrl; // Start with the old image URL
+      String? imageUrl = _existingImageUrl;
       String? publicId = widget.postToEdit?.cloudinaryPublicId;
 
-      // 1. Upload new image IF the user picked one
       if (_selectedImage != null) {
-        // --- ERROR WAS HERE ---
-        // We will NOT attempt to delete the old file.
-        // It will just become an "orphan" in Cloudinary.
-        // --- END OF FIX ---
-
-        // Now, upload the new one
         CloudinaryResponse response = await _cloudinary.uploadFile(
           CloudinaryFile.fromFile(_selectedImage!.path,
               resourceType: CloudinaryResourceType.Image),
@@ -101,26 +101,22 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         publicId = response.publicId;
       }
 
-      // 2. Get current user details
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final user = authProvider.user;
       if (user == null) throw Exception("No user logged in.");
 
-      // 3. Prepare the data map
       final Map<String, dynamic> postData = {
         'content': _contentController.text,
         'tags': _selectedTags.toList(),
         'imageUrl': imageUrl,
         'cloudinaryPublicId': publicId,
-        'publishedAt': Timestamp.now(), // Always update timestamp on edit
+        'publishedAt': Timestamp.now(),
         'anchorId': user.uid,
         'anchorName': user.name,
         'anchorProfilePicUrl': user.profilePicUrl,
         'location': user.location,
-        // We don't reset counts on edit
       };
 
-      // 4. Save to Firestore (Update or Add)
       if (_isEditMode) {
         // --- UPDATE existing post ---
         await FirebaseFirestore.instance
@@ -129,7 +125,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             .update(postData);
       } else {
         // --- ADD new post ---
-        // Add counts only for new posts
         postData['likeCount'] = 0;
         postData['commentCount'] = 0;
 
@@ -137,7 +132,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             .collection('local_posts')
             .add(postData);
 
-        // Update user's total post count only when creating
+        // Update user's total post count
         await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
@@ -146,8 +141,15 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         });
       }
 
+      // --- THIS IS THE FIX ---
+      // 5. Refresh the AuthProvider's local user data
+      if (context.mounted) {
+        await Provider.of<AuthProvider>(context, listen: false).refreshUser();
+      }
+      // --- END OF FIX ---
+
       if (mounted) {
-        Navigator.of(context).pop(); // Go back after success
+        Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
@@ -161,9 +163,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
   }
 
-  // --- NEW: Helper to show the image preview ---
   Widget _buildImagePreview() {
-    // Case 1: User just picked a new image
     if (_selectedImage != null) {
       return Image.file(
         File(_selectedImage!.path),
@@ -172,7 +172,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         fit: BoxFit.cover,
       );
     }
-    // Case 2: We are editing and there's an existing image
     if (_existingImageUrl != null) {
       return Image.network(
         _existingImageUrl!,
@@ -181,7 +180,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         fit: BoxFit.cover,
       );
     }
-    // Case 3: No image
     return const SizedBox.shrink();
   }
 
@@ -220,8 +218,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               maxLines: 8,
               autofocus: true,
             ),
-
-            // --- MODIFIED: Image Preview Section ---
             if (_selectedImage != null || _existingImageUrl != null)
               Stack(
                 children: [
@@ -248,8 +244,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   )
                 ],
               ),
-            // --- END OF MODIFIED SECTION ---
-
             const Divider(),
             OutlinedButton.icon(
               onPressed: _pickImage,
@@ -267,26 +261,29 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               child: Text('Select tags (up to 3)'),
             ),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 8.0,
-              runSpacing: 4.0,
-              children: _availableTags.map((tag) {
-                final isSelected = _selectedTags.contains(tag);
-                return FilterChip(
-                  label: Text(tag),
-                  selected: isSelected,
-                  onSelected: (selected) {
-                    setState(() {
-                      if (selected) {
-                        _selectedTags.add(tag);
-                      } else {
-                        _selectedTags.remove(tag);
-                      }
-                    });
-                  },
-                );
-              }).toList(),
-            ),
+            if (_tagsAreLoading)
+              const Center(child: CircularProgressIndicator())
+            else
+              Wrap(
+                spacing: 8.0,
+                runSpacing: 4.0,
+                children: _availableTags.map((tag) {
+                  final isSelected = _selectedTags.contains(tag);
+                  return FilterChip(
+                    label: Text(tag),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      setState(() {
+                        if (selected) {
+                          _selectedTags.add(tag);
+                        } else {
+                          _selectedTags.remove(tag);
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
           ],
         ),
       ),

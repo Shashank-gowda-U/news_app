@@ -1,8 +1,12 @@
 // lib/screens/profile_screen.dart
 import 'package:flutter/material.dart';
 import 'package:news_app/providers/auth_provider.dart';
-import 'package:news_app/screens/create/my_posts_screen.dart'; // <-- NEW IMPORT
+import 'package:news_app/screens/create/my_posts_screen.dart';
+import 'package:news_app/screens/edit_profile_screen.dart';
 import 'package:news_app/screens/edit_tags_screen.dart';
+// --- NEW IMPORT ---
+import 'package:news_app/screens/following_screen.dart';
+// --- END OF NEW IMPORT ---
 import 'package:news_app/theme/theme_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:news_app/models/user_model.dart';
@@ -26,6 +30,15 @@ class ProfileScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Profile & Settings'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: () {
+              Navigator.of(context).push(MaterialPageRoute(
+                builder: (context) => const EditProfileScreen(),
+              ));
+            },
+            tooltip: 'Edit Profile',
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () {
@@ -82,8 +95,6 @@ class ProfileScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-
-              // --- NEW "MY POSTS" BUTTON ---
               _buildInfoCard(
                 context,
                 icon: Icons.article_outlined,
@@ -95,19 +106,19 @@ class ProfileScreen extends StatelessWidget {
                   ));
                 },
               ),
-              // --- END OF NEW BUTTON ---
-
               const SizedBox(height: 16),
               _buildInfoCard(
                 context,
                 icon: Icons.cake_outlined,
                 title: 'Date of Birth',
-                subtitle: user.dateOfBirth ?? 'Not set',
+                subtitle: user.dateOfBirth == null || user.dateOfBirth!.isEmpty
+                    ? 'Not set'
+                    : user.dateOfBirth!,
               ),
               const Divider(height: 32),
             ],
 
-            // --- Preferences Section (rest of file is the same) ---
+            // --- Preferences Section ---
             Text(
               'My Preferences',
               style: Theme.of(context).textTheme.titleLarge,
@@ -125,15 +136,21 @@ class ProfileScreen extends StatelessWidget {
               },
             ),
             const SizedBox(height: 16),
+
+            // --- MODIFIED "FOLLOWING" BUTTON ---
             _buildInfoCard(
               context,
               icon: Icons.people_alt_outlined,
               title: 'Following ${user.followingAnchors.length} Anchors',
               subtitle: 'View anchors you follow',
               onTap: () {
-                // TODO: Build "Following" screen
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (context) => const FollowingScreen(),
+                ));
               },
             ),
+            // --- END OF MODIFICATION ---
+
             const Divider(height: 32),
             Text(
               'App Settings',

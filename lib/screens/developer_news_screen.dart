@@ -1,6 +1,6 @@
 // lib/screens/developer_news_screen.dart
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+
 import 'package:news_app/models/dev_update.dart';
 import 'package:news_app/widgets/dev_story_card.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -20,7 +20,7 @@ class _DeveloperNewsScreenState extends State<DeveloperNewsScreen> {
   // profile in Firestore.
   // I've added the document ID for the "App Development Log" you created.
   final Set<String> _followedStories = {
-    'YOUR_APP_LOG_DOCUMENT_ID'
+    'FzvMBMRx5UN5U5dmbOSI'
   }; // <-- TODO: Replace this with a real ID from your 'dev_stories' collection
 
   void _toggleFollow(String storyId) {
