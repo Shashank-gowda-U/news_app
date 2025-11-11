@@ -1,22 +1,61 @@
 // lib/widgets/filter_modal.dart
 import 'package:flutter/material.dart';
+// We no longer need cloud_firestore here
 
 class FilterModal extends StatefulWidget {
   final bool isForLocalAnchors;
-  const FilterModal({super.key, required this.isForLocalAnchors});
+  final Map<String, dynamic> currentFilters;
+
+  const FilterModal({
+    super.key,
+    required this.isForLocalAnchors,
+    required this.currentFilters,
+  });
 
   @override
   State<FilterModal> createState() => _FilterModalState();
 }
 
 class _FilterModalState extends State<FilterModal> {
-  String _selectedSort = 'newest';
-  String _selectedMood = 'all'; // For the new emotional filter
+  late String _selectedSort;
+  late String? _selectedMood;
+  // We no longer need _selectedTag, _allTags, or _tagsAreLoading
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedSort = widget.currentFilters['sortField'] == 'publishedAt'
+        ? (widget.currentFilters['sortDescending'] ? 'newest' : 'oldest')
+        : 'valid';
+
+    _selectedMood = widget.currentFilters['selectedMood'];
+    // No need to load tags anymore
+  }
+
+  void _applyFilters() {
+    String sortField = 'publishedAt';
+    bool sortDescending = true;
+
+    if (_selectedSort == 'oldest') {
+      sortField = 'publishedAt';
+      sortDescending = false;
+    } else if (_selectedSort == 'valid') {
+      sortField = 'trueVotes'; // Sort by trueVotes
+      sortDescending = true;
+    }
+
+    // Return the new values
+    Navigator.of(context).pop({
+      'sortField': sortField,
+      'sortDescending': sortDescending,
+      'selectedMood': _selectedMood,
+      'selectedTag': null, // We no longer use this, so we return null
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      // Added padding for the safe area (like the phone's notch)
       padding: EdgeInsets.fromLTRB(
           24, 24, 24, 24 + MediaQuery.of(context).viewPadding.bottom),
       child: SingleChildScrollView(
@@ -47,50 +86,34 @@ class _FilterModalState extends State<FilterModal> {
                 groupValue: _selectedSort,
                 onChanged: (val) => setState(() => _selectedSort = val!),
               ),
-
-            // --- NEW: Emotional/Mood Filter ---
-            // This section only shows if it's for Global News
             if (!widget.isForLocalAnchors) ...[
               const Divider(height: 32),
               Text(
                 'Filter by Mood',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
-              RadioListTile(
-                title: const Text('All News'),
-                value: 'all',
-                groupValue: _selectedMood,
-                onChanged: (val) => setState(() => _selectedMood = val!),
+              Wrap(
+                spacing: 8.0,
+                children: ['uplifting', 'neutral', 'bad_news'].map((mood) {
+                  // Renamed to avoid conflicts
+                  final moodValue = mood == 'bad_news' ? 'bad news' : mood;
+                  return FilterChip(
+                    label: Text(moodValue),
+                    selected: _selectedMood == moodValue,
+                    onSelected: (selected) {
+                      setState(() {
+                        _selectedMood = selected ? moodValue : null;
+                      });
+                    },
+                  );
+                }).toList(),
               ),
-              RadioListTile(
-                title: const Text('Uplifting News'),
-                value: 'uplifting',
-                groupValue: _selectedMood,
-                onChanged: (val) => setState(() => _selectedMood = val!),
-              ),
-              RadioListTile(
-                title: const Text('Neutral News'),
-                value: 'neutral',
-                groupValue: _selectedMood,
-                onChanged: (val) => setState(() => _selectedMood = val!),
-              ),
-              RadioListTile(
-                title: const Text('Bad News'),
-                value: 'bad_news',
-                groupValue: _selectedMood,
-                onChanged: (val) => setState(() => _selectedMood = val!),
-              ),
+
+              // --- "FILTER BY TAG" SECTION HAS BEEN REMOVED ---
             ],
-            // --- END OF NEW SECTION ---
-
-            // --- REMOVED: Location filter section is gone ---
-
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: () {
-                // TODO: Add logic to apply filters
-                Navigator.of(context).pop();
-              },
+              onPressed: _applyFilters,
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 50),
               ),

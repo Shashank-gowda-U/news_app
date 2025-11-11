@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:news_app/models/user_model.dart';
 import 'package:news_app/providers/auth_provider.dart';
+import 'package:news_app/screens/public_profile_screen.dart';
 import 'package:provider/provider.dart';
 
 class FollowingScreen extends StatelessWidget {
@@ -34,6 +35,7 @@ class FollowingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final followingList = authProvider.user?.followingAnchors ?? [];
+    final currentUserId = authProvider.user?.uid;
 
     return Scaffold(
       appBar: AppBar(
@@ -77,10 +79,17 @@ class FollowingScreen extends StatelessWidget {
                           foregroundColor: Colors.red,
                         ),
                         onPressed: () {
-                          _unfollow(
-                              context, authProvider.user!.uid, anchor.uid);
+                          if (currentUserId != null) {
+                            _unfollow(context, currentUserId, anchor.uid);
+                          }
                         },
                       ),
+                      onTap: () {
+                        Navigator.of(context).push(MaterialPageRoute(
+                          builder: (context) =>
+                              PublicProfileScreen(userId: anchor.uid),
+                        ));
+                      },
                     );
                   },
                 );

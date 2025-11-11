@@ -2,45 +2,90 @@
 import 'package:flutter/material.dart';
 import 'package:news_app/models/local_anchor_post.dart';
 import 'package:news_app/screens/detail/post_detail_screen.dart';
+import 'package:news_app/screens/search_screen.dart'; // <-- NEW IMPORT
 import 'package:news_app/widgets/filter_modal.dart';
 import 'package:news_app/widgets/location_filter_modal.dart';
 import 'package:news_app/widgets/local_anchor_post_card.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
-// --- NEW IMPORTS ---
 import 'package:provider/provider.dart';
 import 'package:news_app/providers/auth_provider.dart';
-// --- END OF NEW IMPORTS ---
 
-class LocalAnchorsScreen extends StatelessWidget {
+class LocalAnchorsScreen extends StatefulWidget {
   const LocalAnchorsScreen({super.key});
 
-  void _showSortFilter(BuildContext context) {
-    showModalBottomSheet(
+  @override
+  State<LocalAnchorsScreen> createState() => _LocalAnchorsScreenState();
+}
+
+class _LocalAnchorsScreenState extends State<LocalAnchorsScreen> {
+  // --- MODIFIED: Sort by Newest, no other sort options ---
+  String _sortField = 'publishedAt';
+  bool _sortDescending = true;
+  String? _selectedDistrict;
+  // --- NEW: Toggle for location filter ---
+  bool _filterByLocation = true;
+  // --- END OF NEW ---
+
+  void _showLocationFilter(BuildContext context) async {
+    final Map<String, String?> currentFilters = {
+      // Pass the district, not the state
+      'district': _selectedDistrict,
+    };
+
+    final newFilters = await showModalBottomSheet<Map<String, String?>>(
       context: context,
       isScrollControlled: true,
       builder: (context) {
-        return const FilterModal(isForLocalAnchors: true);
+        // We only pass the district
+        return LocationFilterModal(
+            currentFilters: {'district': _selectedDistrict});
       },
     );
+
+    if (newFilters != null) {
+      setState(() {
+        _selectedDistrict = newFilters['district'];
+        // Always turn on location filter when a location is picked
+        if (_selectedDistrict != null) {
+          _filterByLocation = true;
+        }
+      });
+    }
   }
 
-  void _showLocationFilter(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) {
-        return const LocationFilterModal();
-      },
-    );
+  // --- REMOVED: _showSortFilter is removed ---
+
+  Query _buildAllQuery() {
+    Query query = FirebaseFirestore.instance.collection('local_posts');
+
+    // --- MODIFIED: Only filter if toggle is on AND a district is selected ---
+    if (_filterByLocation && _selectedDistrict != null) {
+      query = query.where('location', isEqualTo: _selectedDistrict);
+    }
+    // --- END OF MODIFICATION ---
+
+    query = query.orderBy(_sortField, descending: _sortDescending);
+    return query;
+  }
+
+  Query _buildFollowingQuery(List<String> followedAnchors) {
+    Query query = FirebaseFirestore.instance.collection('local_posts');
+    query = query.where('anchorId', whereIn: followedAnchors);
+
+    // --- MODIFIED: Also filter by location here ---
+    if (_filterByLocation && _selectedDistrict != null) {
+      query = query.where('location', isEqualTo: _selectedDistrict);
+    }
+    // --- END OF MODIFICATION ---
+
+    query = query.orderBy(_sortField, descending: _sortDescending);
+    return query;
   }
 
   @override
   Widget build(BuildContext context) {
-    // --- NEW: Get the list of followed anchors from our provider ---
     final followedAnchors =
         Provider.of<AuthProvider>(context).user?.followingAnchors ?? [];
-    // --- END OF NEW ---
 
     return DefaultTabController(
       length: 2,
@@ -48,18 +93,38 @@ class LocalAnchorsScreen extends StatelessWidget {
         appBar: AppBar(
           title: const Text('Local Anchors'),
           actions: [
+            // --- NEW: Search Button ---
             IconButton(
-              icon: const Icon(Icons.location_on_outlined),
+              icon: const Icon(Icons.search),
+              onPressed: () {
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (context) => const SearchScreen(),
+                ));
+              },
+            ),
+            // --- END OF NEW ---
+            IconButton(
+              icon: Icon(Icons.location_on_outlined,
+                  color: _filterByLocation && _selectedDistrict != null
+                      ? Colors.blue
+                      : null),
               onPressed: () {
                 _showLocationFilter(context);
               },
             ),
+            // --- NEW: "Show All" Toggle ---
             IconButton(
-              icon: const Icon(Icons.filter_list),
+              icon: Icon(_filterByLocation ? Icons.public_off : Icons.public),
+              tooltip: _filterByLocation
+                  ? "Show All Locations"
+                  : "Filter by Location",
               onPressed: () {
-                _showSortFilter(context);
+                setState(() {
+                  _filterByLocation = !_filterByLocation;
+                });
               },
             ),
+            // --- END OF NEW ---
           ],
           bottom: const TabBar(
             tabs: [
@@ -70,29 +135,25 @@ class LocalAnchorsScreen extends StatelessWidget {
         ),
         body: TabBarView(
           children: [
-            // --- Tab 1: Following (NOW LIVE) ---
+            // --- Tab 1: Following (Now with all filters) ---
             if (followedAnchors.isEmpty)
               const Center(
                 child: Text('You are not following any anchors yet.'),
               )
             else
               StreamBuilder<QuerySnapshot>(
-                // Query for posts WHERE the 'anchorId' is IN our list
-                stream: FirebaseFirestore.instance
-                    .collection('local_posts')
-                    .where('anchorId', whereIn: followedAnchors)
-                    .orderBy('publishedAt', descending: true)
-                    .snapshots(),
+                stream: _buildFollowingQuery(followedAnchors).snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
-                    return const Center(child: Text('Something went wrong.'));
+                    return const Center(
+                        child: Text('Error. Check console for index link.'));
                   }
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
                   if (snapshot.data == null || snapshot.data!.docs.isEmpty) {
                     return const Center(
-                        child: Text('No posts from the anchors you follow.'));
+                        child: Text('No posts found with these filters.'));
                   }
                   final List<DocumentSnapshot> documents = snapshot.data!.docs;
                   return ListView.builder(
@@ -113,21 +174,20 @@ class LocalAnchorsScreen extends StatelessWidget {
                 },
               ),
 
-            // --- Tab 2: All (Already live) ---
+            // --- Tab 2: All (Now with all filters) ---
             StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('local_posts')
-                  .orderBy('publishedAt', descending: true)
-                  .snapshots(),
+              stream: _buildAllQuery().snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
-                  return const Center(child: Text('Something went wrong.'));
+                  return const Center(
+                      child: Text('Error. Check console for index link.'));
                 }
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (snapshot.data == null || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text('No local posts found.'));
+                  return const Center(
+                      child: Text('No local posts found for these filters.'));
                 }
 
                 final List<DocumentSnapshot> documents = snapshot.data!.docs;

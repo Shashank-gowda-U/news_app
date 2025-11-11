@@ -1,29 +1,95 @@
 // lib/widgets/location_filter_modal.dart
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LocationFilterModal extends StatefulWidget {
-  const LocationFilterModal({super.key});
+  // --- FIX: Added '?' to allow null values ---
+  final Map<String, String?> currentFilters;
+  const LocationFilterModal({super.key, required this.currentFilters});
+  // --- END OF FIX ---
 
   @override
   State<LocationFilterModal> createState() => _LocationFilterModalState();
 }
 
 class _LocationFilterModalState extends State<LocationFilterModal> {
-  String? _selectedState = 'Karnataka';
-  String? _selectedDistrict = 'Bengaluru Urban';
+  late String? _selectedState;
+  late String? _selectedDistrict;
 
-  // Dummy data for locations
-  final List<String> _states = ['Karnataka', 'Tamil Nadu', 'Maharashtra'];
-  final Map<String, List<String>> _districts = {
-    'Karnataka': ['Bengaluru Urban', 'Mysuru', 'Mangaluru'],
-    'Tamil Nadu': ['Chennai', 'Coimbatore', 'Madurai'],
-    'Maharashtra': ['Mumbai', 'Pune', 'Nagpur'],
-  };
+  List<String> _states = [];
+  List<String> _districts = [];
+  bool _isLoadingStates = true;
+  bool _isLoadingDistricts = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedState = widget.currentFilters['state'];
+    _selectedDistrict = widget.currentFilters['district'];
+    _loadStates();
+    if (_selectedState != null) {
+      _loadDistricts(_selectedState!);
+    }
+  }
+
+  Future<void> _loadStates() async {
+    setState(() {
+      _isLoadingStates = true;
+    });
+    try {
+      final snapshot =
+          await FirebaseFirestore.instance.collection('locations').get();
+      final states = snapshot.docs
+          .map((doc) => doc.id)
+          .toList(); // Use doc ID as state name
+      setState(() {
+        _states = states;
+        _isLoadingStates = false;
+      });
+    } catch (e) {
+      // handle error
+    }
+  }
+
+  Future<void> _loadDistricts(String stateName) async {
+    setState(() {
+      _isLoadingDistricts = true;
+      _districts = [];
+    });
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('locations')
+          .doc(stateName)
+          .get();
+      final data = doc.data();
+      if (data != null && data['districts'] != null) {
+        final districts = List<String>.from(data['districts']);
+        setState(() {
+          _districts = districts;
+        });
+      }
+    } catch (e) {
+      // handle error
+    } finally {
+      setState(() {
+        _isLoadingDistricts = false;
+      });
+    }
+  }
+
+  void _applyFilters() {
+    // Return a map with the correct type
+    Navigator.of(context).pop<Map<String, String?>>({
+      'state': _selectedState,
+      'district': _selectedDistrict,
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(24.0),
+      padding: EdgeInsets.fromLTRB(
+          24, 24, 24, 24 + MediaQuery.of(context).viewPadding.bottom),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -33,31 +99,40 @@ class _LocationFilterModalState extends State<LocationFilterModal> {
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 24),
-          DropdownButtonFormField<String>(
-            value: _selectedState,
-            decoration: const InputDecoration(
-              labelText: 'State',
-              border: OutlineInputBorder(),
-            ),
-            items: _states.map((state) {
-              return DropdownMenuItem(value: state, child: Text(state));
-            }).toList(),
-            onChanged: (value) {
-              setState(() {
-                _selectedState = value;
-                _selectedDistrict = null; // Reset district
-              });
-            },
-          ),
+          _isLoadingStates
+              ? const Center(child: CircularProgressIndicator())
+              : DropdownButtonFormField<String>(
+                  value: _selectedState,
+                  hint: const Text('Select a State'),
+                  decoration: const InputDecoration(
+                    labelText: 'State',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _states.map((state) {
+                    return DropdownMenuItem(value: state, child: Text(state));
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _selectedState = value;
+                        _selectedDistrict = null; // Reset district
+                      });
+                      _loadDistricts(value); // Load new districts
+                    }
+                  },
+                ),
           const SizedBox(height: 16),
-          if (_selectedState != null)
+          if (_isLoadingDistricts)
+            const Center(child: CircularProgressIndicator())
+          else if (_selectedState != null)
             DropdownButtonFormField<String>(
               value: _selectedDistrict,
+              hint: const Text('Select a District'),
               decoration: const InputDecoration(
                 labelText: 'District',
                 border: OutlineInputBorder(),
               ),
-              items: _districts[_selectedState!]?.map((district) {
+              items: _districts.map((district) {
                 return DropdownMenuItem(value: district, child: Text(district));
               }).toList(),
               onChanged: (value) {
@@ -68,10 +143,7 @@ class _LocationFilterModalState extends State<LocationFilterModal> {
             ),
           const SizedBox(height: 24),
           ElevatedButton(
-            onPressed: () {
-              // TODO: Add logic to apply location filter
-              Navigator.of(context).pop();
-            },
+            onPressed: _applyFilters,
             style: ElevatedButton.styleFrom(
               minimumSize: const Size(double.infinity, 50),
             ),

@@ -4,26 +4,89 @@ import 'package:news_app/models/news_article.dart';
 import 'package:news_app/screens/detail/post_detail_screen.dart';
 import 'package:news_app/widgets/filter_modal.dart';
 import 'package:news_app/widgets/news_article_card.dart';
-
-// --- NEW IMPORTS ---
 import 'package:cloud_firestore/cloud_firestore.dart';
+// --- NEW IMPORTS ---
+import 'package:provider/provider.dart';
+import 'package:news_app/providers/auth_provider.dart';
 // --- END OF NEW IMPORTS ---
 
-class AiNewsFeedScreen extends StatelessWidget {
+class AiNewsFeedScreen extends StatefulWidget {
   const AiNewsFeedScreen({super.key});
 
-  void _showFilterModal(BuildContext context) {
-    showModalBottomSheet(
+  @override
+  State<AiNewsFeedScreen> createState() => _AiNewsFeedScreenState();
+}
+
+class _AiNewsFeedScreenState extends State<AiNewsFeedScreen> {
+  String _sortField = 'publishedAt';
+  bool _sortDescending = true;
+  String? _selectedMood;
+  // We no longer need _selectedTag here
+
+  // --- MODIFIED: This function now takes the user's tags ---
+  Query _buildQuery(List<String> preferredTags) {
+    Query query = FirebaseFirestore.instance.collection('articles');
+
+    // 1. --- NEW: Automatic Tag Filtering ---
+    // If the user has preferred tags, use them.
+    // This finds any post that contains AT LEAST ONE of the user's tags.
+    if (preferredTags.isNotEmpty) {
+      query = query.where('topicTags', arrayContainsAny: preferredTags);
+    } else {
+      // If user has no tags, show all news
+      // (or we could show nothing, this is a design choice)
+      // For now, let's just show all news (no query)
+    }
+
+    // 2. Filter by Mood (if selected)
+    if (_selectedMood != null) {
+      query = query.where('emotionalTag', isEqualTo: _selectedMood);
+    }
+
+    // 3. Add sorting
+    query = query.orderBy(_sortField, descending: _sortDescending);
+
+    return query;
+  }
+
+  void _showFilterModal(BuildContext context) async {
+    final Map<String, dynamic> currentFilters = {
+      'sortField': _sortField,
+      'sortDescending': _sortDescending,
+      'selectedMood': _selectedMood,
+      'selectedTag': null, // We don't use this anymore
+    };
+
+    final newFilters = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
       builder: (context) {
-        return const FilterModal(isForLocalAnchors: false);
+        return FilterModal(
+          isForLocalAnchors: false,
+          currentFilters: currentFilters,
+        );
       },
     );
+
+    if (newFilters != null) {
+      setState(() {
+        _sortField = newFilters['sortField'];
+        _sortDescending = newFilters['sortDescending'];
+        _selectedMood = newFilters['selectedMood'];
+        // _selectedTag is no longer set
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // --- NEW: Get the preferredTags from the provider ---
+    // We use "watch" so if the user changes their tags in the
+    // profile, this screen will automatically rebuild!
+    final preferredTags =
+        Provider.of<AuthProvider>(context).user?.preferredTags ?? [];
+    // --- END OF NEW ---
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Global News'),
@@ -36,37 +99,29 @@ class AiNewsFeedScreen extends StatelessWidget {
           ),
         ],
       ),
-      // --- BODY IS NOW A STREAMBUILDER ---
       body: StreamBuilder<QuerySnapshot>(
-        // Listen to the 'articles' collection
-        // Order by publish date, newest first
-        stream: FirebaseFirestore.instance
-            .collection('articles')
-            .orderBy('publishedAt', descending: true)
-            .snapshots(),
+        // --- Pass the tags to our query builder ---
+        stream: _buildQuery(preferredTags).snapshots(),
         builder: (context, snapshot) {
-          // 1. Check for errors
           if (snapshot.hasError) {
-            return const Center(child: Text('Something went wrong.'));
+            return const Center(
+                child: Text(
+                    'Error. You may need to create a Firestore index. Check your debug console for a link.'));
           }
-          // 2. Check if loading
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          // 3. Check if there is no data
           if (snapshot.data == null || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('No news articles found.'));
+            return const Center(
+                child: Text('No news articles found for your preferences.'));
           }
 
-          // 4. We have data!
           final List<DocumentSnapshot> documents = snapshot.data!.docs;
 
           return ListView.builder(
             itemCount: documents.length,
             itemBuilder: (context, index) {
-              // Convert the Firestore document into our NewsArticle object
               final article = NewsArticle.fromFirestore(documents[index]);
-
               return GestureDetector(
                 onTap: () {
                   Navigator.of(context).push(MaterialPageRoute(
@@ -79,7 +134,6 @@ class AiNewsFeedScreen extends StatelessWidget {
           );
         },
       ),
-      // --- END OF STREAMBUILDER ---
     );
   }
 }

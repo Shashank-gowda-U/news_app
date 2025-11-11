@@ -6,13 +6,14 @@ import 'package:news_app/models/local_anchor_post.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:news_app/providers/auth_provider.dart';
+import 'package:news_app/screens/public_profile_screen.dart'; // For tapping on name
 // --- END OF NEW IMPORTS ---
 
 class LocalAnchorPostCard extends StatelessWidget {
   final LocalAnchorPost post;
   const LocalAnchorPostCard({super.key, required this.post});
 
-  // --- MODIFIED: Added async and the refreshUser call ---
+  // --- NEW FUNCTION to handle following/unfollowing ---
   Future<void> _toggleFollow(
       BuildContext context, String currentUserId, bool isFollowing) async {
     final userRef =
@@ -35,7 +36,7 @@ class LocalAnchorPostCard extends StatelessWidget {
         await anchorRef.update({'totalFollowers': FieldValue.increment(1)});
       }
 
-      // --- THIS IS THE FIX ---
+      // --- THIS IS THE FIX FOR REAL-TIME UPDATE ---
       // After updating the database, tell our app's provider to
       // refresh its local user data.
       await Provider.of<AuthProvider>(context, listen: false).refreshUser();
@@ -49,15 +50,15 @@ class LocalAnchorPostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ... (The rest of this file is exactly the same as before) ...
-    // --- We just read from the provider to get the latest state ---
-    final authProvider = Provider.of<AuthProvider>(context);
-    final currentUserId = authProvider.user?.uid;
-    final bool isFollowing =
-        authProvider.user?.followingAnchors.contains(post.anchorId) ?? false;
-
     final String formattedDate =
         DateFormat.yMMMd().add_jm().format(post.publishedAt);
+
+    // --- NEW: Get the current user to see who they follow ---
+    final authProvider = Provider.of<AuthProvider>(context);
+    final currentUserId = authProvider.user?.uid;
+    // Check if the current user is already following this post's anchor
+    final bool isFollowing =
+        authProvider.user?.followingAnchors.contains(post.anchorId) ?? false;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -76,22 +77,34 @@ class LocalAnchorPostCard extends StatelessWidget {
                   radius: 20,
                 ),
                 const SizedBox(width: 10),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      post.anchorName,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                    Text(
-                      '${post.location} • $formattedDate',
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
-                    ),
-                  ],
+                // --- MODIFIED: Tappable anchor name ---
+                GestureDetector(
+                  onTap: () {
+                    Navigator.of(context).push(MaterialPageRoute(
+                      builder: (context) =>
+                          PublicProfileScreen(userId: post.anchorId),
+                    ));
+                  },
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        post.anchorName,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      Text(
+                        '${post.location} • $formattedDate',
+                        style:
+                            const TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                    ],
+                  ),
                 ),
+                // --- END OF MODIFICATION ---
                 const Spacer(),
 
+                // --- MODIFIED: Follow Button ---
                 // Don't show follow button if it's our own post
                 if (currentUserId != null && currentUserId != post.anchorId)
                   IconButton(
@@ -105,6 +118,7 @@ class LocalAnchorPostCard extends StatelessWidget {
                       _toggleFollow(context, currentUserId, isFollowing);
                     },
                   ),
+                // --- END OF MODIFICATION ---
               ],
             ),
             const SizedBox(height: 12),
@@ -144,7 +158,7 @@ class LocalAnchorPostCard extends StatelessWidget {
 
             const Divider(height: 16),
 
-            // 5. Social Actions
+            // 5. Social Actions (Will be wired up next)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [

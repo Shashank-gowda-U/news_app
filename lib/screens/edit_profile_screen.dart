@@ -14,7 +14,7 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _nameController;
-  late TextEditingController _locationController;
+  // --- REMOVED location controller ---
   late TextEditingController _dobController;
   bool _isLoading = false;
 
@@ -23,11 +23,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.initState();
     final user = Provider.of<AuthProvider>(context, listen: false).user;
     _nameController = TextEditingController(text: user?.name ?? '');
-    _locationController = TextEditingController(text: user?.location ?? '');
     _dobController = TextEditingController(text: user?.dateOfBirth ?? '');
   }
 
   Future<void> _selectDate() async {
+    // ... (This function is unchanged)
     DateTime initial = DateTime(2005);
     if (_dobController.text.isNotEmpty) {
       try {
@@ -60,16 +60,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (user == null) return;
 
     try {
+      // --- MODIFIED: Removed location ---
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .update({
         'name': _nameController.text,
-        'location': _locationController.text,
         'dateOfBirth': _dobController.text,
       });
+      // --- END OF MODIFICATION ---
 
-      // We must also refresh the user data in our auth provider
       await Provider.of<AuthProvider>(context, listen: false).refreshUser();
 
       if (mounted) {
@@ -126,15 +126,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 prefixIcon: Icon(Icons.person_outline),
               ),
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _locationController,
-              decoration: const InputDecoration(
-                labelText: 'Location',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.location_on_outlined),
-              ),
-            ),
+
+            // --- LOCATION TEXTFIELD IS REMOVED ---
+
             if (user?.isAnchor ?? false) ...[
               const SizedBox(height: 16),
               TextField(

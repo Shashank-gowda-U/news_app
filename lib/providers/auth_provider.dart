@@ -122,8 +122,14 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // Register with Email/Password
-  Future<void> registerWithEmail(
-      String name, String email, String password, String profilePicUrl) async {
+  // lib/providers/auth_provider.dart
+
+  // ... (inside AuthProvider class)
+
+  // Register with Email/Password
+  Future<void> registerWithEmail(String name, String email, String password,
+      String profilePicUrl, String location) async {
+    // <-- MODIFIED
     try {
       // 1. Create user in Firebase Auth
       final UserCredential userCredential =
@@ -139,6 +145,7 @@ class AuthProvider extends ChangeNotifier {
         name: name,
         email: email,
         profilePicUrl: profilePicUrl,
+        location: location, // <-- MODIFIED
       );
 
       // 3. Save the profile to Firestore
@@ -147,9 +154,10 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       print("Error registering with email: $e");
-      // TODO: Show this error to the user
     }
   }
+
+  // ... (rest of the file is the same)
 
   // Sign out
   Future<void> signOut() async {
