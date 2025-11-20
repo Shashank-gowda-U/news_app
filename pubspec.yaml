@@ -27,8 +27,9 @@ dependencies:
 
   # --- ADD THESE TWO LINES MANUALLY ---
   image_picker: ^1.1.2
-  cloudinary_public: ^0.10.0
+  cloudinary_public: ^0.23.1
   # --- END OF NEW LINES ---
+  google_generative_ai: ^0.4.1
   
 
 dev_dependencies:

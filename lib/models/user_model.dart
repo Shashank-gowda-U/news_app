@@ -15,12 +15,15 @@ class UserModel {
   final int totalFollowers;
   final int totalLikes;
   final bool hasSelectedInitialTags;
+  final String searchName;
+  final double reputationScore;
 
   const UserModel({
     required this.uid,
     required this.name,
     required this.email,
     required this.profilePicUrl,
+    required this.searchName,
     this.location = "Bengaluru, IN",
     this.isAnchor = false,
     this.dateOfBirth,
@@ -30,6 +33,7 @@ class UserModel {
     this.totalFollowers = 0,
     this.totalLikes = 0,
     this.hasSelectedInitialTags = false,
+    this.reputationScore = 100.0,
   });
 
   // A factory method to create a UserModel from a Firestore document
@@ -40,6 +44,7 @@ class UserModel {
       name: data['name'] ?? '',
       email: data['email'] ?? '',
       profilePicUrl: data['profilePicUrl'] ?? '',
+      searchName: data['searchName'] ?? (data['name'] ?? '').toLowerCase(),
       location: data['location'] ?? 'Bengaluru, IN',
       isAnchor: data['isAnchor'] ?? false,
       dateOfBirth: data['dateOfBirth'],
@@ -49,6 +54,7 @@ class UserModel {
       totalFollowers: data['totalFollowers'] ?? 0,
       totalLikes: data['totalLikes'] ?? 0,
       hasSelectedInitialTags: data['hasSelectedInitialTags'] ?? false,
+      reputationScore: (data['reputationScore'] ?? 100.0).toDouble(),
     );
   }
 
@@ -56,6 +62,7 @@ class UserModel {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
+      'searchName': searchName,
       'email': email,
       'profilePicUrl': profilePicUrl,
       'location': location,
@@ -67,6 +74,7 @@ class UserModel {
       'totalFollowers': totalFollowers,
       'totalLikes': totalLikes,
       'hasSelectedInitialTags': hasSelectedInitialTags,
+      'reputationScore': reputationScore,
     };
   }
 }

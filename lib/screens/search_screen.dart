@@ -23,13 +23,14 @@ class _SearchScreenState extends State<SearchScreen> {
       return;
     }
 
+    final lowercaseQuery = query.toLowerCase();
 
     setState(() {
       _resultsStream = FirebaseFirestore.instance
           .collection('users')
           .where('isAnchor', isEqualTo: true)
-          .where('name', isGreaterThanOrEqualTo: query)
-          .where('name', isLessThanOrEqualTo: '$query\uf8ff')
+          .where('searchName', isGreaterThanOrEqualTo: lowercaseQuery)
+          .where('searchName', isLessThanOrEqualTo: '$lowercaseQuery\uf8ff')
           .limit(20)
           .snapshots();
     });

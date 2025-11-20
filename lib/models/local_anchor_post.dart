@@ -14,6 +14,8 @@ class LocalAnchorPost {
   final List<String> tags;
   final int likeCount;
   final int commentCount;
+  final int trueVotes;
+  final int falseVotes;
 
   const LocalAnchorPost({
     required this.id,
@@ -28,6 +30,8 @@ class LocalAnchorPost {
     required this.tags,
     required this.likeCount,
     required this.commentCount,
+    this.trueVotes = 0,
+    this.falseVotes = 0,
   });
 
   factory LocalAnchorPost.fromFirestore(DocumentSnapshot doc) {
@@ -46,6 +50,8 @@ class LocalAnchorPost {
       tags: List<String>.from(data['tags'] ?? []),
       likeCount: data['likeCount'] ?? 0,
       commentCount: data['commentCount'] ?? 0,
+      trueVotes: data['trueVotes'] ?? 0,
+      falseVotes: data['falseVotes'] ?? 0,
     );
   }
 } //

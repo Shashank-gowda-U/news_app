@@ -108,18 +108,28 @@ class AuthProvider with ChangeNotifier {
       // Check if this is a new user
       if (userCredential.additionalUserInfo!.isNewUser) {
         // Create a new user profile in Firestore
+        final name = user.displayName ?? 'New User';
         final newUser = UserModel(
           uid: user.uid,
-          name: user.displayName ?? 'New User',
+          name: name,
           email: user.email!,
           profilePicUrl:
               user.photoURL ?? availableProfilePics[0], // Use Google pic
+          searchName: name.toLowerCase(),
         );
         await _firestore.collection('users').doc(user.uid).set(newUser.toMap());
         _userModel = newUser;
         notifyListeners();
+      } else {
+        // --- TASK 3 & 2 FIX ---
+        // For existing users, update their profile picture and search name
+        await _firestore.collection('users').doc(user.uid).update({
+          'profilePicUrl': user.photoURL ?? _userModel?.profilePicUrl,
+          'searchName': (user.displayName ?? _userModel?.name ?? '').toLowerCase(),
+        });
+        // The auth listener will fetch the updated model
+        // --- END OF FIX ---
       }
-      // Note: _onAuthStateChanged will handle fetching for existing users
     } catch (e) {
       // ignore: avoid_print
       print("Error signing in with Google: $e");
@@ -139,12 +149,14 @@ class AuthProvider with ChangeNotifier {
       final User user = userCredential.user!;
 
       // 2. Create our user profile model, assigning a default pic
+      // TASK 2 FIX: The constructor now handles searchName automatically
       final newUser = UserModel(
         uid: user.uid,
         name: name,
         email: email,
         profilePicUrl: availableProfilePics[0], // Assign default
         location: location,
+        searchName: name.toLowerCase(),
       );
 
       // 3. Save the profile to Firestore

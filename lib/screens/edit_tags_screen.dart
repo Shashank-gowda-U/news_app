@@ -180,7 +180,17 @@ class _EditTagsScreenState extends State<EditTagsScreen> {
                     onSelected: (selected) {
                       setState(() {
                         if (selected) {
-                          _selectedTags.add(tag);
+                          if (_selectedTags.length < 9) {
+                            _selectedTags.add(tag);
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                    'You can select a maximum of 9 tags.'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          }
                         } else {
                           _selectedTags.remove(tag);
                         }

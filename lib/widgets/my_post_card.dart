@@ -73,15 +73,16 @@ class MyPostCard extends StatelessWidget {
   // --- MODIFIED: Function to handle the actual deletion ---
   Future<void> _deletePost(BuildContext context) async {
     try {
-      await FirebaseFirestore.instance
-          .collection('local_posts')
-          .doc(post.id)
-          .delete();
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final postRef =
+            FirebaseFirestore.instance.collection('local_posts').doc(post.id);
+        final userRef =
+            FirebaseFirestore.instance.collection('users').doc(post.anchorId);
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(post.anchorId) // Use the anchorId from the post
-          .update({'totalPosts': FieldValue.increment(-1)});
+        // Mark the post for deletion and the user's post count for decrementing
+        transaction.delete(postRef);
+        transaction.update(userRef, {'totalPosts': FieldValue.increment(-1)});
+      });
 
       // 3. Refresh the AuthProvider's local user data
       if (context.mounted) {

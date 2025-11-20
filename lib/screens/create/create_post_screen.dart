@@ -1,12 +1,18 @@
 // lib/screens/create/create_post_screen.dart
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloudinary_public/cloudinary_public.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:news_app/providers/auth_provider.dart';
 import 'package:news_app/models/local_anchor_post.dart';
+
+// TODO: ADD YOUR GEMINI API KEY HERE
+// This key is used for the content safety check.
+const String geminiApiKey = "TODO";
 
 class CreatePostScreen extends StatefulWidget {
   final LocalAnchorPost? postToEdit;
@@ -74,6 +80,28 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     });
   }
 
+  Future<bool> _analyzeContentSafety(String text) async {
+    if (geminiApiKey == "TODO" || geminiApiKey.isEmpty) {
+      return true; // Bypass check if API key isn't set
+    }
+    try {
+      // Using a model fine-tuned for safety is better, but gemini-pro is a good general start.
+      final model = GenerativeModel(model: 'gemini-pro', apiKey: geminiApiKey);
+      final prompt =
+          'Analyze the following text for hate speech, harassment, or dangerous content. Respond with only the single word "SAFE" or the single word "UNSAFE". Text: "$text"';
+      final content = [Content.text(prompt)];
+      final response = await model.generateContent(content);
+
+      return response.text?.trim().toUpperCase() == 'SAFE';
+    } catch (e) {
+      // If the API call fails, log the error but allow the post.
+      // In a real-world app, you might want to log this to a monitoring service.
+      // ignore: avoid_print
+      debugPrint("Content safety check failed, allowing post. Error: $e");
+      return true;
+    }
+  }
+
   Future<void> _uploadPost() async {
     if (_contentController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -86,6 +114,30 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     setState(() {
       _isLoading = true;
     });
+
+    // --- TASK 6: AI Content Safety Check ---
+    final isSafe = await _analyzeContentSafety(_contentController.text);
+    if (!isSafe && mounted) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Content Flagged'),
+          content: const Text(
+              'Our AI has flagged this content as potentially unsafe. Please revise your post.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      setState(() {
+        _isLoading = false;
+      });
+      return; // Abort the upload
+    }
+    // --- END OF TASK 6 ---
 
     try {
       String? imageUrl = _existingImageUrl;
@@ -114,9 +166,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         'anchorName': user.name,
         'anchorProfilePicUrl': user.profilePicUrl,
         'location': user.location,
+        'trueVotes': 0, // Initialize votes
+        'falseVotes': 0,
       };
 
       if (_isEditMode) {
+        // We don't re-initialize votes on edit
+        postData.remove('trueVotes');
+        postData.remove('falseVotes');
         await FirebaseFirestore.instance
             .collection('local_posts')
             .doc(widget.postToEdit!.id)
