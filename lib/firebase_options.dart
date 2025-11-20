@@ -59,5 +59,4 @@ class DefaultFirebaseOptions {
     projectId: 'news-app-a6f79',
     storageBucket: 'news-app-a6f79.firebasestorage.app',
   );
-
 }

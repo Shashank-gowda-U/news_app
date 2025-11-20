@@ -14,7 +14,7 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _nameController;
-  // --- REMOVED location controller ---
+
   late TextEditingController _dobController;
   bool _isLoading = false;
 
@@ -26,8 +26,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _dobController = TextEditingController(text: user?.dateOfBirth ?? '');
   }
 
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _dobController.dispose();
+    super.dispose();
+  }
+
   Future<void> _selectDate() async {
-    // ... (This function is unchanged)
+
     DateTime initial = DateTime(2005);
     if (_dobController.text.isNotEmpty) {
       try {
@@ -60,7 +67,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (user == null) return;
 
     try {
-      // --- MODIFIED: Removed location ---
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -68,7 +74,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         'name': _nameController.text,
         'dateOfBirth': _dobController.text,
       });
-      // --- END OF MODIFICATION ---
 
       await Provider.of<AuthProvider>(context, listen: false).refreshUser();
 
@@ -79,9 +84,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         Navigator.of(context).pop();
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update: $e')),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -127,7 +134,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
             ),
 
-            // --- LOCATION TEXTFIELD IS REMOVED ---
+
 
             if (user?.isAnchor ?? false) ...[
               const SizedBox(height: 16),

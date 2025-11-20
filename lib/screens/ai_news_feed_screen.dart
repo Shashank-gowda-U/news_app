@@ -1,14 +1,27 @@
 // lib/screens/ai_news_feed_screen.dart
+
+// ARCHITECTURE NOTE:
+// This screen fetches news articles from the 'articles' collection in Firestore.
+// It does NOT make a direct call to a news API from within the app.
+//
+// A separate backend service (e.g., a Cloud Function or a standalone script)
+// is responsible for:
+// 1. Calling a news API (like NewsAPI.org) to get the latest articles.
+// 2. Calling the Gemini API to generate a summary for each article.
+// 3. Storing the final, processed NewsArticle object (including the summary)
+//    into the 'articles' collection in Firestore.
+//
+// Therefore, your API keys for the news service and Gemini should be handled
+// securely in your backend service, not in this Flutter application.
+
 import 'package:flutter/material.dart';
 import 'package:news_app/models/news_article.dart';
 import 'package:news_app/screens/detail/post_detail_screen.dart';
 import 'package:news_app/widgets/filter_modal.dart';
 import 'package:news_app/widgets/news_article_card.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-// --- NEW IMPORTS ---
 import 'package:provider/provider.dart';
 import 'package:news_app/providers/auth_provider.dart';
-// --- END OF NEW IMPORTS ---
 
 class AiNewsFeedScreen extends StatefulWidget {
   const AiNewsFeedScreen({super.key});
@@ -21,29 +34,25 @@ class _AiNewsFeedScreenState extends State<AiNewsFeedScreen> {
   String _sortField = 'publishedAt';
   bool _sortDescending = true;
   String? _selectedMood;
-  // We no longer need _selectedTag here
 
-  // --- MODIFIED: This function now takes the user's tags ---
+
+
   Query _buildQuery(List<String> preferredTags) {
     Query query = FirebaseFirestore.instance.collection('articles');
 
-    // 1. --- NEW: Automatic Tag Filtering ---
-    // If the user has preferred tags, use them.
-    // This finds any post that contains AT LEAST ONE of the user's tags.
     if (preferredTags.isNotEmpty) {
-      query = query.where('topicTags', arrayContainsAny: preferredTags);
-    } else {
-      // If user has no tags, show all news
-      // (or we could show nothing, this is a design choice)
-      // For now, let's just show all news (no query)
+      // Firestore 'array-contains-any' has a limit of 10 items.
+      // We'll take the first 10 tags if the user has more.
+      // A more advanced implementation might show a warning to the user.
+      final tagsToQuery =
+          preferredTags.length > 10 ? preferredTags.sublist(0, 10) : preferredTags;
+      query = query.where('topicTags', arrayContainsAny: tagsToQuery);
     }
 
-    // 2. Filter by Mood (if selected)
     if (_selectedMood != null) {
       query = query.where('emotionalTag', isEqualTo: _selectedMood);
     }
 
-    // 3. Add sorting
     query = query.orderBy(_sortField, descending: _sortDescending);
 
     return query;
@@ -54,7 +63,7 @@ class _AiNewsFeedScreenState extends State<AiNewsFeedScreen> {
       'sortField': _sortField,
       'sortDescending': _sortDescending,
       'selectedMood': _selectedMood,
-      'selectedTag': null, // We don't use this anymore
+
     };
 
     final newFilters = await showModalBottomSheet<Map<String, dynamic>>(
@@ -73,19 +82,15 @@ class _AiNewsFeedScreenState extends State<AiNewsFeedScreen> {
         _sortField = newFilters['sortField'];
         _sortDescending = newFilters['sortDescending'];
         _selectedMood = newFilters['selectedMood'];
-        // _selectedTag is no longer set
+
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // --- NEW: Get the preferredTags from the provider ---
-    // We use "watch" so if the user changes their tags in the
-    // profile, this screen will automatically rebuild!
     final preferredTags =
         Provider.of<AuthProvider>(context).user?.preferredTags ?? [];
-    // --- END OF NEW ---
 
     return Scaffold(
       appBar: AppBar(
@@ -100,7 +105,7 @@ class _AiNewsFeedScreenState extends State<AiNewsFeedScreen> {
         ],
       ),
       body: StreamBuilder<QuerySnapshot>(
-        // --- Pass the tags to our query builder ---
+
         stream: _buildQuery(preferredTags).snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {

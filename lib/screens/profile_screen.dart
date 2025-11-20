@@ -4,9 +4,7 @@ import 'package:news_app/providers/auth_provider.dart';
 import 'package:news_app/screens/create/my_posts_screen.dart';
 import 'package:news_app/screens/edit_profile_screen.dart';
 import 'package:news_app/screens/edit_tags_screen.dart';
-// --- NEW IMPORT ---
 import 'package:news_app/screens/following_screen.dart';
-// --- END OF NEW IMPORT ---
 import 'package:news_app/theme/theme_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:news_app/models/user_model.dart';
@@ -53,7 +51,7 @@ class ProfileScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- User Info Section ---
+
             Center(
               child: Column(
                 children: [
@@ -79,7 +77,7 @@ class ProfileScreen extends StatelessWidget {
             ),
             const Divider(height: 32),
 
-            // --- Anchor Info Section ---
+
             if (user.isAnchor) ...[
               Text(
                 'Anchor Dashboard',
@@ -118,7 +116,7 @@ class ProfileScreen extends StatelessWidget {
               const Divider(height: 32),
             ],
 
-            // --- Preferences Section ---
+
             Text(
               'My Preferences',
               style: Theme.of(context).textTheme.titleLarge,
@@ -137,7 +135,6 @@ class ProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // --- MODIFIED "FOLLOWING" BUTTON ---
             _buildInfoCard(
               context,
               icon: Icons.people_alt_outlined,
@@ -149,7 +146,6 @@ class ProfileScreen extends StatelessWidget {
                 ));
               },
             ),
-            // --- END OF MODIFICATION ---
 
             const Divider(height: 32),
             Text(

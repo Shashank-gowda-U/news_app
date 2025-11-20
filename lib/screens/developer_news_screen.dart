@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:news_app/models/dev_update.dart';
 import 'package:news_app/widgets/dev_story_card.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-// Note: We don't need the AuthProvider here *yet*
-// We will add it when we save the "followed stories" to the user's profile.
+
 
 class DeveloperNewsScreen extends StatefulWidget {
   const DeveloperNewsScreen({super.key});
@@ -15,10 +14,7 @@ class DeveloperNewsScreen extends StatefulWidget {
 }
 
 class _DeveloperNewsScreenState extends State<DeveloperNewsScreen> {
-  // This is a temporary list to track what the user follows.
-  // In our next step, we will move this into the user's
-  // profile in Firestore.
-  // I've added the document ID for the "App Development Log" you created.
+
   final Set<String> _followedStories = {
     'FzvMBMRx5UN5U5dmbOSI'
   }; // <-- TODO: Replace this with a real ID from your 'dev_stories' collection
@@ -36,7 +32,7 @@ class _DeveloperNewsScreenState extends State<DeveloperNewsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // We create a list from the set to use in our query
+
     final followedStoriesList = _followedStories.toList();
 
     return DefaultTabController(
@@ -53,7 +49,7 @@ class _DeveloperNewsScreenState extends State<DeveloperNewsScreen> {
         ),
         body: TabBarView(
           children: [
-            // --- Tab 1: All Stories (Reads all dev_stories) ---
+
             StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('dev_stories')
@@ -83,7 +79,7 @@ class _DeveloperNewsScreenState extends State<DeveloperNewsScreen> {
                   );
                 }),
 
-            // --- Tab 2: Following (NOW LIVE AND CORRECTED) ---
+
             if (followedStoriesList.isEmpty)
               const Center(
                 child: Padding(
@@ -95,7 +91,7 @@ class _DeveloperNewsScreenState extends State<DeveloperNewsScreen> {
                 ),
               )
             else
-              // This StreamBuilder reads *only* the stories you follow
+
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('dev_stories')
@@ -121,7 +117,7 @@ class _DeveloperNewsScreenState extends State<DeveloperNewsScreen> {
                           snapshot.data!.docs[index]);
                       return DevStoryCard(
                         story: story,
-                        isFollowed: true, // We know this is true
+                        isFollowed: true,
                         onFollowToggle: () => _toggleFollow(story.id),
                       );
                     },

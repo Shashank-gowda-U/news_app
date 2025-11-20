@@ -1,26 +1,22 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:news_app/providers/auth_provider.dart';
-import 'package:news_app/screens/auth/welcome_screen.dart';
+import 'package:news_app/theme/app_themes.dart';
 import 'package:news_app/theme/theme_provider.dart';
+import 'package:news_app/widgets/auth_wrapper.dart';
 import 'package:provider/provider.dart';
 
-// --- NEW IMPORTS ---
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-// --- END OF NEW IMPORTS ---
 
 void main() async {
-  // --- NEW: Ensure Flutter is ready ---
   WidgetsFlutterBinding.ensureInitialized();
 
-  // --- NEW: Initialize Firebase ---
   // This line connects to your Firebase project using the
   // lib/firebase_options.dart file that was generated.
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  // --- END OF NEW ---
 
   runApp(
     MultiProvider(
@@ -45,7 +41,7 @@ class MyApp extends StatelessWidget {
       theme: AppThemes.lightTheme,
       darkTheme: AppThemes.darkTheme,
       themeMode: themeProvider.themeMode,
-      home: const WelcomeScreen(),
+      home: const AuthWrapper(),
       debugShowCheckedModeBanner: false,
     );
   }

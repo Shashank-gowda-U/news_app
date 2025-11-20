@@ -14,8 +14,9 @@ class UserModel {
   final int totalPosts;
   final int totalFollowers;
   final int totalLikes;
+  final bool hasSelectedInitialTags;
 
-  UserModel({
+  const UserModel({
     required this.uid,
     required this.name,
     required this.email,
@@ -24,10 +25,11 @@ class UserModel {
     this.isAnchor = false,
     this.dateOfBirth,
     this.followingAnchors = const [],
-    this.preferredTags = const ['science', 'technology'],
+    this.preferredTags = const [],
     this.totalPosts = 0,
     this.totalFollowers = 0,
     this.totalLikes = 0,
+    this.hasSelectedInitialTags = false,
   });
 
   // A factory method to create a UserModel from a Firestore document
@@ -46,6 +48,7 @@ class UserModel {
       totalPosts: data['totalPosts'] ?? 0,
       totalFollowers: data['totalFollowers'] ?? 0,
       totalLikes: data['totalLikes'] ?? 0,
+      hasSelectedInitialTags: data['hasSelectedInitialTags'] ?? false,
     );
   }
 
@@ -63,6 +66,7 @@ class UserModel {
       'totalPosts': totalPosts,
       'totalFollowers': totalFollowers,
       'totalLikes': totalLikes,
+      'hasSelectedInitialTags': hasSelectedInitialTags,
     };
   }
 }

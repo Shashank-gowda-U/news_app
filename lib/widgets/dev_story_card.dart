@@ -21,13 +21,10 @@ class DevStoryCard extends StatefulWidget {
 }
 
 class _DevStoryCardState extends State<DevStoryCard> {
-  // This will hold our posts once they are loaded
   Stream<QuerySnapshot>? _postsStream;
 
-  // This is called when the user taps the expansion tile
   void _onExpansionChanged(bool isExpanded) {
     if (isExpanded && _postsStream == null) {
-      // If expanding for the first time, fetch the posts subcollection
       setState(() {
         _postsStream = FirebaseFirestore.instance
             .collection('dev_stories')
@@ -47,7 +44,6 @@ class _DevStoryCardState extends State<DevStoryCard> {
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ExpansionTile(
-        // --- Header Section ---
         leading: Icon(widget.story.icon, size: 32),
         title: Text(widget.story.title,
             style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -63,8 +59,7 @@ class _DevStoryCardState extends State<DevStoryCard> {
             ),
           ),
         ),
-        onExpansionChanged: _onExpansionChanged, // <-- NEW
-        // --- Expanded Posts Section (now a StreamBuilder) ---
+        onExpansionChanged: _onExpansionChanged,
         children: [
           if (_postsStream == null)
             const Center(
@@ -83,7 +78,6 @@ class _DevStoryCardState extends State<DevStoryCard> {
                   return const Text('No posts found for this story.');
                 }
 
-                // We have posts!
                 return Column(
                   children: snapshot.data!.docs.map((doc) {
                     final post = DevUpdatePost.fromFirestore(doc);

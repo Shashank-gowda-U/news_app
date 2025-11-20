@@ -9,11 +9,8 @@ import 'package:news_app/providers/auth_provider.dart';
 
 class MyPostCard extends StatelessWidget {
   final LocalAnchorPost post;
-  // --- THIS IS THE FIX ---
   const MyPostCard({super.key, required this.post});
-  // --- END OF FIX ---
 
-  // --- Function to show the Edit/Delete options ---
   void _showOptions(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -24,7 +21,7 @@ class MyPostCard extends StatelessWidget {
               leading: const Icon(Icons.edit_outlined),
               title: const Text('Edit Post'),
               onTap: () {
-                Navigator.of(context).pop(); // Close the bottom sheet
+                Navigator.of(context).pop(); 
                 // Open CreatePostScreen in "Edit Mode"
                 Navigator.of(context).push(MaterialPageRoute(
                   builder: (context) => CreatePostScreen(postToEdit: post),
@@ -36,7 +33,7 @@ class MyPostCard extends StatelessWidget {
               title: const Text('Delete Post',
                   style: TextStyle(color: Colors.red)),
               onTap: () {
-                Navigator.of(context).pop(); // Close the bottom sheet
+                Navigator.of(context).pop(); 
                 _confirmDelete(context);
               },
             ),
@@ -46,7 +43,6 @@ class MyPostCard extends StatelessWidget {
     );
   }
 
-  // --- Function to show the "Are you sure?" dialog ---
   void _confirmDelete(BuildContext context) {
     showDialog(
       context: context,
@@ -64,7 +60,7 @@ class MyPostCard extends StatelessWidget {
               style: TextButton.styleFrom(foregroundColor: Colors.red),
               child: const Text('Delete'),
               onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop(); 
                 _deletePost(context);
               },
             ),
@@ -77,13 +73,11 @@ class MyPostCard extends StatelessWidget {
   // --- MODIFIED: Function to handle the actual deletion ---
   Future<void> _deletePost(BuildContext context) async {
     try {
-      // 1. Delete the post from Firestore
       await FirebaseFirestore.instance
           .collection('local_posts')
           .doc(post.id)
           .delete();
 
-      // 2. Decrement the user's post count
       await FirebaseFirestore.instance
           .collection('users')
           .doc(post.anchorId) // Use the anchorId from the post

@@ -2,11 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-// --- NEW IMPORTS ---
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:news_app/providers/auth_provider.dart';
-// --- END OF NEW IMPORTS ---
 
 class BecomeAnchorScreen extends StatefulWidget {
   const BecomeAnchorScreen({super.key});
@@ -17,13 +15,13 @@ class BecomeAnchorScreen extends StatefulWidget {
 
 class _BecomeAnchorScreenState extends State<BecomeAnchorScreen> {
   final _dobController = TextEditingController();
-  final _locationController = TextEditingController(); // <-- NEW
-  bool _isLoading = false; // <-- NEW
+  final _locationController = TextEditingController(); 
+  bool _isLoading = false;
 
   Future<void> _selectDate() async {
     DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime(2005), // Start at 18+ years ago
+      initialDate: DateTime(2005),
       firstDate: DateTime(1920),
       lastDate: DateTime.now().subtract(const Duration(days: 365 * 18)),
       helpText: 'You must be 18 or older',
@@ -35,7 +33,6 @@ class _BecomeAnchorScreenState extends State<BecomeAnchorScreen> {
     }
   }
 
-  // --- NEW FUNCTION: To submit the application ---
   Future<void> _submitApplication() async {
     if (_dobController.text.isEmpty || _locationController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -86,7 +83,13 @@ class _BecomeAnchorScreenState extends State<BecomeAnchorScreen> {
       }
     }
   }
-  // --- END OF NEW FUNCTION ---
+
+  @override
+  void dispose() {
+    _dobController.dispose();
+    _locationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -121,7 +124,7 @@ class _BecomeAnchorScreenState extends State<BecomeAnchorScreen> {
             ),
             const SizedBox(height: 16),
             TextField(
-              controller: _locationController, // <-- CHANGED
+              controller: _locationController,
               decoration: const InputDecoration(
                 labelText: 'Your Location (e.g., Koramangala, Bengaluru)',
                 border: OutlineInputBorder(),
@@ -130,7 +133,6 @@ class _BecomeAnchorScreenState extends State<BecomeAnchorScreen> {
             ),
             const SizedBox(height: 32),
 
-            // --- NEW: Loading check ---
             if (_isLoading)
               const Center(child: CircularProgressIndicator())
             else
@@ -141,7 +143,6 @@ class _BecomeAnchorScreenState extends State<BecomeAnchorScreen> {
                 ),
                 child: const Text('Submit Application'),
               ),
-            // --- END OF NEW ---
           ],
         ),
       ),

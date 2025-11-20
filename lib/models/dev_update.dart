@@ -16,6 +16,7 @@ IconData _getIconFromString(String iconName) {
   }
 }
 
+
 // Represents a single post within a story (e.g., "Day 1 Update")
 class DevUpdatePost {
   final String id;
@@ -23,7 +24,7 @@ class DevUpdatePost {
   final String content;
   final DateTime publishedAt;
 
-  DevUpdatePost({
+  const DevUpdatePost({
     required this.id,
     required this.title,
     required this.content,
@@ -49,15 +50,14 @@ class DevUpdateStory {
   final String title;
   final String description;
   final IconData icon;
-  // --- This is now just an ID, we will fetch posts separately ---
-  // final List<DevUpdatePost> posts;
 
-  DevUpdateStory({
+
+  const DevUpdateStory({
     required this.id,
     required this.title,
     required this.description,
     required this.icon,
-    // required this.posts,
+
   });
 
   // --- NEW: fromFirestore constructor ---
@@ -72,5 +72,4 @@ class DevUpdateStory {
   }
 }
 
-// We no longer need this dummy data
-// final List<DevUpdateStory> dummyDevUpdates = [ ... ];
+

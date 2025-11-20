@@ -15,7 +15,7 @@ class LocalAnchorPost {
   final int likeCount;
   final int commentCount;
 
-  LocalAnchorPost({
+  const LocalAnchorPost({
     required this.id,
     required this.anchorId,
     required this.anchorName,
@@ -48,9 +48,9 @@ class LocalAnchorPost {
       commentCount: data['commentCount'] ?? 0,
     );
   }
-} // <-- *** THE CLASS ENDS HERE ***
+} //
 
-// --- FIX: The list must be defined OUTSIDE the class ---
+
 final List<LocalAnchorPost> dummyLocalNews = [
   LocalAnchorPost(
     id: 'local1',
@@ -81,3 +81,4 @@ final List<LocalAnchorPost> dummyLocalNews = [
     commentCount: 22,
   ),
 ];
+//

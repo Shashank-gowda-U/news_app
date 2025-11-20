@@ -3,10 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LocationFilterModal extends StatefulWidget {
-  // --- FIX: Added '?' to allow null values ---
   final Map<String, String?> currentFilters;
   const LocationFilterModal({super.key, required this.currentFilters});
-  // --- END OF FIX ---
 
   @override
   State<LocationFilterModal> createState() => _LocationFilterModalState();
@@ -39,15 +37,25 @@ class _LocationFilterModalState extends State<LocationFilterModal> {
     try {
       final snapshot =
           await FirebaseFirestore.instance.collection('locations').get();
-      final states = snapshot.docs
-          .map((doc) => doc.id)
-          .toList(); // Use doc ID as state name
-      setState(() {
-        _states = states;
-        _isLoadingStates = false;
-      });
-    } catch (e) {
-      // handle error
+      final states = snapshot.docs.map((doc) => doc.id).toList();
+      if (mounted) {
+        setState(() {
+          _states = states;
+          _isLoadingStates = false;
+        });
+      }
+    } catch (e, s) {
+      // ignore: avoid_print
+      print('Error loading states: $e\n$s');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Failed to load states. Please try again.')),
+        );
+        setState(() {
+          _isLoadingStates = false;
+        });
+      }
     }
   }
 
@@ -64,21 +72,31 @@ class _LocationFilterModalState extends State<LocationFilterModal> {
       final data = doc.data();
       if (data != null && data['districts'] != null) {
         final districts = List<String>.from(data['districts']);
+        if (mounted) {
+          setState(() {
+            _districts = districts;
+          });
+        }
+      }
+    } catch (e, s) {
+      // ignore: avoid_print
+      print('Error loading districts: $e\n$s');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Failed to load districts. Please try again.')),
+        );
+      }
+    } finally {
+      if (mounted) {
         setState(() {
-          _districts = districts;
+          _isLoadingDistricts = false;
         });
       }
-    } catch (e) {
-      // handle error
-    } finally {
-      setState(() {
-        _isLoadingDistricts = false;
-      });
     }
   }
 
   void _applyFilters() {
-    // Return a map with the correct type
     Navigator.of(context).pop<Map<String, String?>>({
       'state': _selectedState,
       'district': _selectedDistrict,

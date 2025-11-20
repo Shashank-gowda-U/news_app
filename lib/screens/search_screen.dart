@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:news_app/models/user_model.dart';
-import 'package:news_app/screens/public_profile_screen.dart'; // We will create this next
+import 'package:news_app/screens/public_profile_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -23,12 +23,11 @@ class _SearchScreenState extends State<SearchScreen> {
       return;
     }
 
-    // This query finds names that start with the query text.
-    // It's case-sensitive. A more complex search (like Algolia)
-    // is needed for case-insensitive search.
+
     setState(() {
       _resultsStream = FirebaseFirestore.instance
           .collection('users')
+          .where('isAnchor', isEqualTo: true)
           .where('name', isGreaterThanOrEqualTo: query)
           .where('name', isLessThanOrEqualTo: '$query\uf8ff')
           .limit(20)
@@ -80,7 +79,6 @@ class _SearchScreenState extends State<SearchScreen> {
                       title: Text(user.name),
                       subtitle: Text(user.location),
                       onTap: () {
-                        // Go to the new Public Profile Screen
                         Navigator.of(context).push(MaterialPageRoute(
                           builder: (context) =>
                               PublicProfileScreen(userId: user.uid),

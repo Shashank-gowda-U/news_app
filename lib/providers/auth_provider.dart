@@ -1,11 +1,11 @@
 // lib/providers/auth_provider.dart
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:news_app/models/user_model.dart'; // Import our new model
 
-class AuthProvider extends ChangeNotifier {
+class AuthProvider with ChangeNotifier {
   // Firebase service instances
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
@@ -15,13 +15,15 @@ class AuthProvider extends ChangeNotifier {
   User? _firebaseUser;
   // Our custom user data object (from Firestore)
   UserModel? _userModel;
+  bool _hasError = false;
 
   bool get isLoggedIn => _firebaseUser != null;
   User? get firebaseUser => _firebaseUser;
-  UserModel? get user => _userModel; // This is what the Profile screen will use
+  UserModel? get user => _userModel;
+  bool get hasError => _hasError;
 
   // This is the dummy list of profile pics for the register screen
-  final List<String> availableProfilePics = [
+  final List<String> availableProfilePics = const [
     'https://i.pravatar.cc/150?img=1',
     'https://i.pravatar.cc/150?img=3',
     'https://i.pravatar.cc/150?img=5',
@@ -44,6 +46,7 @@ class AuthProvider extends ChangeNotifier {
     if (user == null) {
       // User is logged out
       _userModel = null;
+      _hasError = false;
     } else {
       // User is logged in, fetch their profile from Firestore
       await _fetchUserModel(user.uid);
@@ -53,30 +56,34 @@ class AuthProvider extends ChangeNotifier {
 
   // Private method to get user data from Firestore
   Future<void> _fetchUserModel(String uid) async {
+    _hasError = false;
     try {
       final doc = await _firestore.collection('users').doc(uid).get();
       if (doc.exists) {
         _userModel = UserModel.fromFirestore(doc);
+      } else {
+        _hasError = true; // User record not found in Firestore
       }
     } catch (e) {
+      // ignore: avoid_print
       print("Error fetching user model: $e");
+      _hasError = true;
     }
     notifyListeners();
   }
-  // lib/providers/auth_provider.dart
 
-  // ... (after _fetchUserModel)
+  Future<void> retryLoadUser() async {
+    if (_firebaseUser != null) {
+      await _fetchUserModel(_firebaseUser!.uid);
+    }
+  }
 
-  // --- NEW FUNCTION ---
   // Call this to manually refetch user data from Firestore
   Future<void> refreshUser() async {
     if (_firebaseUser != null) {
       await _fetchUserModel(_firebaseUser!.uid);
     }
   }
-  // --- END OF NEW FUNCTION ---
-
-  // ... (rest of the file)
 
   // --- PUBLIC METHODS FOR UI TO CALL ---
 
@@ -110,26 +117,18 @@ class AuthProvider extends ChangeNotifier {
         );
         await _firestore.collection('users').doc(user.uid).set(newUser.toMap());
         _userModel = newUser;
-      } else {
-        // Existing user, just fetch their profile
-        await _fetchUserModel(user.uid);
+        notifyListeners();
       }
-
-      notifyListeners();
+      // Note: _onAuthStateChanged will handle fetching for existing users
     } catch (e) {
+      // ignore: avoid_print
       print("Error signing in with Google: $e");
     }
   }
 
   // Register with Email/Password
-  // lib/providers/auth_provider.dart
-
-  // ... (inside AuthProvider class)
-
-  // Register with Email/Password
-  Future<void> registerWithEmail(String name, String email, String password,
-      String profilePicUrl, String location) async {
-    // <-- MODIFIED
+  Future<void> registerWithEmail(
+      String name, String email, String password, String location) async {
     try {
       // 1. Create user in Firebase Auth
       final UserCredential userCredential =
@@ -139,13 +138,13 @@ class AuthProvider extends ChangeNotifier {
       );
       final User user = userCredential.user!;
 
-      // 2. Create our user profile model
+      // 2. Create our user profile model, assigning a default pic
       final newUser = UserModel(
         uid: user.uid,
         name: name,
         email: email,
-        profilePicUrl: profilePicUrl,
-        location: location, // <-- MODIFIED
+        profilePicUrl: availableProfilePics[0], // Assign default
+        location: location,
       );
 
       // 3. Save the profile to Firestore
@@ -153,11 +152,11 @@ class AuthProvider extends ChangeNotifier {
       _userModel = newUser;
       notifyListeners();
     } catch (e) {
+      // ignore: avoid_print
       print("Error registering with email: $e");
+      rethrow; // Re-throw the error so the UI can catch it
     }
   }
-
-  // ... (rest of the file is the same)
 
   // Sign out
   Future<void> signOut() async {

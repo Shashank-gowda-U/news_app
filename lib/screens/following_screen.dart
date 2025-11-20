@@ -6,12 +6,22 @@ import 'package:news_app/providers/auth_provider.dart';
 import 'package:news_app/screens/public_profile_screen.dart';
 import 'package:provider/provider.dart';
 
-class FollowingScreen extends StatelessWidget {
+class FollowingScreen extends StatefulWidget {
   const FollowingScreen({super.key});
 
-  // This is the same logic from the post card
+  @override
+  State<FollowingScreen> createState() => _FollowingScreenState();
+}
+
+class _FollowingScreenState extends State<FollowingScreen> {
+  final Set<String> _loadingAnchors = {};
+
   Future<void> _unfollow(
       BuildContext context, String currentUserId, String anchorId) async {
+    setState(() {
+      _loadingAnchors.add(anchorId);
+    });
+
     final userRef =
         FirebaseFirestore.instance.collection('users').doc(currentUserId);
     final anchorRef =
@@ -22,12 +32,19 @@ class FollowingScreen extends StatelessWidget {
         'followingAnchors': FieldValue.arrayRemove([anchorId])
       });
       await anchorRef.update({'totalFollowers': FieldValue.increment(-1)});
-      // Refresh the provider so the UI updates
       await Provider.of<AuthProvider>(context, listen: false).refreshUser();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to unfollow: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to unfollow: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingAnchors.remove(anchorId);
+        });
+      }
     }
   }
 
@@ -46,8 +63,6 @@ class FollowingScreen extends StatelessWidget {
               child: Text('You are not following any anchors yet.'),
             )
           : StreamBuilder<QuerySnapshot>(
-              // Query the 'users' collection for documents WHERE
-              // the document ID is IN our followingList
               stream: FirebaseFirestore.instance
                   .collection('users')
                   .where(FieldPath.documentId, whereIn: followingList)
@@ -66,6 +81,7 @@ class FollowingScreen extends StatelessWidget {
                   itemCount: anchorDocs.length,
                   itemBuilder: (context, index) {
                     final anchor = UserModel.fromFirestore(anchorDocs[index]);
+                    final bool isLoading = _loadingAnchors.contains(anchor.uid);
 
                     return ListTile(
                       leading: CircleAvatar(
@@ -73,17 +89,23 @@ class FollowingScreen extends StatelessWidget {
                       ),
                       title: Text(anchor.name),
                       subtitle: Text(anchor.location),
-                      trailing: OutlinedButton(
-                        child: const Text('Unfollow'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.red,
-                        ),
-                        onPressed: () {
-                          if (currentUserId != null) {
-                            _unfollow(context, currentUserId, anchor.uid);
-                          }
-                        },
-                      ),
+                      trailing: isLoading
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child:
+                                  CircularProgressIndicator(strokeWidth: 2.0))
+                          : OutlinedButton(
+                              child: const Text('Unfollow'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.red,
+                              ),
+                              onPressed: () {
+                                if (currentUserId != null) {
+                                  _unfollow(context, currentUserId, anchor.uid);
+                                }
+                              },
+                            ),
                       onTap: () {
                         Navigator.of(context).push(MaterialPageRoute(
                           builder: (context) =>

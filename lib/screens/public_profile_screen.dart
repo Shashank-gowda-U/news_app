@@ -8,36 +8,61 @@ import 'package:news_app/screens/detail/post_detail_screen.dart';
 import 'package:news_app/widgets/local_anchor_post_card.dart';
 import 'package:provider/provider.dart';
 
-class PublicProfileScreen extends StatelessWidget {
+class PublicProfileScreen extends StatefulWidget {
   final String userId;
   const PublicProfileScreen({super.key, required this.userId});
 
-  // This is the follow logic from local_anchor_post_card
+  @override
+  State<PublicProfileScreen> createState() => _PublicProfileScreenState();
+}
+
+class _PublicProfileScreenState extends State<PublicProfileScreen> {
+  bool _isTogglingFollow = false;
+
   Future<void> _toggleFollow(
       BuildContext context, String currentUserId, bool isFollowing) async {
+    setState(() {
+      _isTogglingFollow = true;
+    });
+
     final userRef =
         FirebaseFirestore.instance.collection('users').doc(currentUserId);
-    final anchorRef = FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId); // Use the profile's userId
+    final anchorRef =
+        FirebaseFirestore.instance.collection('users').doc(widget.userId);
+
+    // Use a write batch for an atomic operation
+    final batch = FirebaseFirestore.instance.batch();
 
     try {
       if (isFollowing) {
-        await userRef.update({
-          'followingAnchors': FieldValue.arrayRemove([userId])
+        batch.update(userRef, {
+          'followingAnchors': FieldValue.arrayRemove([widget.userId])
         });
-        await anchorRef.update({'totalFollowers': FieldValue.increment(-1)});
+        batch.update(anchorRef, {'totalFollowers': FieldValue.increment(-1)});
       } else {
-        await userRef.update({
-          'followingAnchors': FieldValue.arrayUnion([userId])
+        batch.update(userRef, {
+          'followingAnchors': FieldValue.arrayUnion([widget.userId])
         });
-        await anchorRef.update({'totalFollowers': FieldValue.increment(1)});
+        batch.update(anchorRef, {'totalFollowers': FieldValue.increment(1)});
       }
-      await Provider.of<AuthProvider>(context, listen: false).refreshUser();
+
+      await batch.commit();
+
+      if (mounted) {
+        await Provider.of<AuthProvider>(context, listen: false).refreshUser();
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update follow status: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update follow status: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isTogglingFollow = false;
+        });
+      }
     }
   }
 
@@ -46,16 +71,15 @@ class PublicProfileScreen extends StatelessWidget {
     final authProvider = Provider.of<AuthProvider>(context);
     final currentUserId = authProvider.user?.uid;
     final bool isFollowing =
-        authProvider.user?.followingAnchors.contains(userId) ?? false;
-    final bool isMe = currentUserId == userId;
+        authProvider.user?.followingAnchors.contains(widget.userId) ?? false;
+    final bool isMe = currentUserId == widget.userId;
 
     return Scaffold(
       appBar: AppBar(),
       body: StreamBuilder<DocumentSnapshot>(
-        // This stream gets the user's profile data
         stream: FirebaseFirestore.instance
             .collection('users')
-            .doc(userId)
+            .doc(widget.userId)
             .snapshots(),
         builder: (context, userSnapshot) {
           if (!userSnapshot.hasData) {
@@ -68,7 +92,6 @@ class PublicProfileScreen extends StatelessWidget {
               return [
                 SliverList(
                   delegate: SliverChildListDelegate([
-                    // --- Profile Header ---
                     Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Column(
@@ -101,13 +124,16 @@ class PublicProfileScreen extends StatelessWidget {
                             ),
                           const SizedBox(height: 16),
                           if (!isMe && user.isAnchor && currentUserId != null)
-                            ElevatedButton(
-                              child: Text(isFollowing ? 'Unfollow' : 'Follow'),
-                              onPressed: () {
-                                _toggleFollow(
-                                    context, currentUserId, isFollowing);
-                              },
-                            ),
+                            _isTogglingFollow
+                                ? const CircularProgressIndicator()
+                                : ElevatedButton(
+                                    child:
+                                        Text(isFollowing ? 'Unfollow' : 'Follow'),
+                                    onPressed: () {
+                                      _toggleFollow(
+                                          context, currentUserId, isFollowing);
+                                    },
+                                  ),
                         ],
                       ),
                     ),
@@ -124,13 +150,11 @@ class PublicProfileScreen extends StatelessWidget {
                 ),
               ];
             },
-            // --- User's Post Feed ---
             body: user.isAnchor
                 ? StreamBuilder<QuerySnapshot>(
-                    // This stream gets all posts by this user
                     stream: FirebaseFirestore.instance
                         .collection('local_posts')
-                        .where('anchorId', isEqualTo: userId)
+                        .where('anchorId', isEqualTo: widget.userId)
                         .orderBy('publishedAt', descending: true)
                         .snapshots(),
                     builder: (context, postSnapshot) {

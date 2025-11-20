@@ -2,63 +2,82 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:news_app/models/local_anchor_post.dart';
-// --- NEW IMPORTS ---
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:news_app/providers/auth_provider.dart';
 import 'package:news_app/screens/public_profile_screen.dart'; // For tapping on name
-// --- END OF NEW IMPORTS ---
 
-class LocalAnchorPostCard extends StatelessWidget {
+class LocalAnchorPostCard extends StatefulWidget {
   final LocalAnchorPost post;
   const LocalAnchorPostCard({super.key, required this.post});
 
-  // --- NEW FUNCTION to handle following/unfollowing ---
+  @override
+  State<LocalAnchorPostCard> createState() => _LocalAnchorPostCardState();
+}
+
+class _LocalAnchorPostCardState extends State<LocalAnchorPostCard> {
+  bool _isTogglingFollow = false;
+
   Future<void> _toggleFollow(
       BuildContext context, String currentUserId, bool isFollowing) async {
+    setState(() {
+      _isTogglingFollow = true;
+    });
+
     final userRef =
         FirebaseFirestore.instance.collection('users').doc(currentUserId);
     final anchorRef =
-        FirebaseFirestore.instance.collection('users').doc(post.anchorId);
+        FirebaseFirestore.instance.collection('users').doc(widget.post.anchorId);
+
+    // Use a write batch for an atomic operation
+    final batch = FirebaseFirestore.instance.batch();
 
     try {
       if (isFollowing) {
-        // --- Unfollow logic ---
-        await userRef.update({
-          'followingAnchors': FieldValue.arrayRemove([post.anchorId])
+        batch.update(userRef, {
+          'followingAnchors': FieldValue.arrayRemove([widget.post.anchorId])
         });
-        await anchorRef.update({'totalFollowers': FieldValue.increment(-1)});
+        batch.update(anchorRef, {'totalFollowers': FieldValue.increment(-1)});
       } else {
-        // --- Follow logic ---
-        await userRef.update({
-          'followingAnchors': FieldValue.arrayUnion([post.anchorId])
+        batch.update(userRef, {
+          'followingAnchors': FieldValue.arrayUnion([widget.post.anchorId])
         });
-        await anchorRef.update({'totalFollowers': FieldValue.increment(1)});
+        batch.update(anchorRef, {'totalFollowers': FieldValue.increment(1)});
       }
 
-      // --- THIS IS THE FIX FOR REAL-TIME UPDATE ---
-      // After updating the database, tell our app's provider to
-      // refresh its local user data.
-      await Provider.of<AuthProvider>(context, listen: false).refreshUser();
-      // --- END OF FIX ---
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update follow status: $e')),
-      );
+      await batch.commit();
+
+      if (mounted) {
+        await Provider.of<AuthProvider>(context, listen: false).refreshUser();
+      }
+    } catch (e, s) {
+      // ignore: avoid_print
+      print('Error toggling follow: $e\n$s');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Failed to update follow status. Please try again.')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isTogglingFollow = false;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final String formattedDate =
-        DateFormat.yMMMd().add_jm().format(post.publishedAt);
+        DateFormat.yMMMd().add_jm().format(widget.post.publishedAt);
 
-    // --- NEW: Get the current user to see who they follow ---
     final authProvider = Provider.of<AuthProvider>(context);
     final currentUserId = authProvider.user?.uid;
-    // Check if the current user is already following this post's anchor
     final bool isFollowing =
-        authProvider.user?.followingAnchors.contains(post.anchorId) ?? false;
+        authProvider.user?.followingAnchors.contains(widget.post.anchorId) ??
+            false;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -69,71 +88,66 @@ class LocalAnchorPostCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Anchor Info (Feature #12)
             Row(
               children: [
                 CircleAvatar(
-                  backgroundImage: NetworkImage(post.anchorProfilePicUrl),
+                  backgroundImage: NetworkImage(widget.post.anchorProfilePicUrl),
                   radius: 20,
                 ),
                 const SizedBox(width: 10),
-                // --- MODIFIED: Tappable anchor name ---
                 GestureDetector(
                   onTap: () {
                     Navigator.of(context).push(MaterialPageRoute(
                       builder: (context) =>
-                          PublicProfileScreen(userId: post.anchorId),
+                          PublicProfileScreen(userId: widget.post.anchorId),
                     ));
                   },
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        post.anchorName,
+                        widget.post.anchorName,
                         style: const TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       Text(
-                        '${post.location} • $formattedDate',
+                        '${widget.post.location} • $formattedDate',
                         style:
                             const TextStyle(color: Colors.grey, fontSize: 12),
                       ),
                     ],
                   ),
                 ),
-                // --- END OF MODIFICATION ---
                 const Spacer(),
-
-                // --- MODIFIED: Follow Button ---
-                // Don't show follow button if it's our own post
-                if (currentUserId != null && currentUserId != post.anchorId)
-                  IconButton(
-                    icon: Icon(
-                      isFollowing
-                          ? Icons.person_remove_alt_1_outlined
-                          : Icons.person_add_alt_1_outlined,
-                      color: isFollowing ? Colors.blue : null,
-                    ),
-                    onPressed: () {
-                      _toggleFollow(context, currentUserId, isFollowing);
-                    },
-                  ),
-                // --- END OF MODIFICATION ---
+                if (currentUserId != null &&
+                    currentUserId != widget.post.anchorId)
+                  _isTogglingFollow
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2.0))
+                      : IconButton(
+                          icon: Icon(
+                            isFollowing
+                                ? Icons.person_remove_alt_1_outlined
+                                : Icons.person_add_alt_1_outlined,
+                            color: isFollowing ? Colors.blue : null,
+                          ),
+                          onPressed: () {
+                            _toggleFollow(context, currentUserId, isFollowing);
+                          },
+                        ),
               ],
             ),
             const SizedBox(height: 12),
-
-            // 2. Post Content
-            Text(post.content, style: const TextStyle(fontSize: 14)),
-
-            // 3. Optional Image
-            if (post.imageUrl != null)
+            Text(widget.post.content, style: const TextStyle(fontSize: 14)),
+            if (widget.post.imageUrl != null)
               Padding(
                 padding: const EdgeInsets.only(top: 12.0),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: Image.network(
-                    post.imageUrl!,
+                    widget.post.imageUrl!,
                     width: double.infinity,
                     height: 180,
                     fit: BoxFit.cover,
@@ -141,12 +155,10 @@ class LocalAnchorPostCard extends StatelessWidget {
                 ),
               ),
             const SizedBox(height: 8),
-
-            // 4. Tags (Feature #13)
             Wrap(
               spacing: 6.0,
               runSpacing: 4.0,
-              children: post.tags
+              children: widget.post.tags
                   .map((tag) => Chip(
                         label: Text(tag),
                         padding: const EdgeInsets.all(2),
@@ -155,21 +167,18 @@ class LocalAnchorPostCard extends StatelessWidget {
                       ))
                   .toList(),
             ),
-
             const Divider(height: 16),
-
-            // 5. Social Actions (Will be wired up next)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildSocialButton(
                   icon: Icons.thumb_up_outlined,
-                  label: post.likeCount.toString(),
+                  label: widget.post.likeCount.toString(),
                   onPressed: () {/* TODO: Add like logic */},
                 ),
                 _buildSocialButton(
                   icon: Icons.comment_outlined,
-                  label: post.commentCount.toString(),
+                  label: widget.post.commentCount.toString(),
                   onPressed: () {/* TODO: Add comment logic */},
                 ),
                 _buildSocialButton(
@@ -185,7 +194,6 @@ class LocalAnchorPostCard extends StatelessWidget {
     );
   }
 
-  // Helper widget for the social buttons
   Widget _buildSocialButton(
       {required IconData icon,
       required String label,

@@ -21,7 +21,6 @@ class TruthVoteBar extends StatelessWidget {
     int falseFlex = 100 - trueFlex;
 
     if (totalVotes == 0) {
-      // If no votes, show a neutral grey bar
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -43,7 +42,6 @@ class TruthVoteBar extends StatelessWidget {
       );
     }
 
-    // This is the "else" part that runs if there are votes
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -89,3 +87,4 @@ class TruthVoteBar extends StatelessWidget {
     );
   }
 }
+//

@@ -10,10 +10,8 @@ class WelcomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Get the auth provider
     final authProvider = Provider.of<AuthProvider>(context);
 
-    // Check if user is logged in and return the correct screen
     if (authProvider.isLoggedIn) {
       return const HomeScreen();
     } else {

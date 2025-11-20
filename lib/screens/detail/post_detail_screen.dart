@@ -7,7 +7,6 @@ import 'package:news_app/widgets/comment_card.dart';
 import 'package:news_app/widgets/truth_vote_bar.dart';
 
 class PostDetailScreen extends StatelessWidget {
-  // This screen can accept EITHER an article OR a post
   final NewsArticle? article;
   final LocalAnchorPost? post;
 
@@ -15,13 +14,10 @@ class PostDetailScreen extends StatelessWidget {
     super.key,
     this.article,
     this.post,
-    // We assert (check) that we received at least one, but not both.
   }) : assert(article != null || post != null,
             'You must provide either an article or a post.');
-
   @override
   Widget build(BuildContext context) {
-    // --- 1. Determine which data to use ---
     final bool isGlobalNews = (article != null);
     final String title = isGlobalNews ? article!.title : post!.anchorName;
 
@@ -36,7 +32,6 @@ class PostDetailScreen extends StatelessWidget {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // --- 2. The App Bar with Image ---
           SliverAppBar(
             expandedHeight: 250.0,
             pinned: true,
@@ -50,7 +45,7 @@ class PostDetailScreen extends StatelessWidget {
               ),
               background: Hero(
                 tag:
-                    heroTag, // For smooth animation (we'd need to add this to the cards)
+                    heroTag, 
                 child: Image.network(
                   imageUrl,
                   fit: BoxFit.cover,
@@ -60,7 +55,6 @@ class PostDetailScreen extends StatelessWidget {
               ),
             ),
           ),
-          // --- 3. The Content Body ---
           SliverList(
             delegate: SliverChildListDelegate(
               [
@@ -95,7 +89,6 @@ class PostDetailScreen extends StatelessWidget {
 
                       const Divider(height: 32),
 
-                      // --- 4. The Validation Section ---
                       Text(
                         'Community Validation',
                         style: Theme.of(context).textTheme.titleLarge,
@@ -144,13 +137,11 @@ class PostDetailScreen extends StatelessWidget {
 
                       const Divider(height: 32),
 
-                      // --- 5. The Comment Section ---
                       Text(
                         'Comments (3)', // Dummy count
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
                       const SizedBox(height: 16),
-                      // Dummy comments
                       const CommentCard(
                         author: 'Jane',
                         comment: 'This is a huge breakthrough!',

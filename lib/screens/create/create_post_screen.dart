@@ -17,10 +17,11 @@ class CreatePostScreen extends StatefulWidget {
 }
 
 class _CreatePostScreenState extends State<CreatePostScreen> {
-  // --- ADD YOUR CLOUDINARY DETAILS HERE ---
-  final String _cloudName = "YOUR_CLOUD_NAME";
-  final String _uploadPreset = "YOUR_UPLOAD_PRESET";
-  // --- End of Cloudinary Details ---
+  // TODO: Replace with your own Cloudinary credentials.
+  // WARNING: Do not hardcode credentials in production.
+  // Use a secure method like environment variables (flutter_dotenv) or a configuration file.
+  final String _cloudName = "dpnbaiwbw";
+  final String _uploadPreset = "news-ml";
 
   late final CloudinaryPublic _cloudinary;
   final _contentController = TextEditingController();
@@ -45,7 +46,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       _selectedTags.addAll(widget.postToEdit!.tags);
       _existingImageUrl = widget.postToEdit!.imageUrl;
     }
-    _loadTags(); // Load tags from Firestore
+    _loadTags();
   }
 
   Future<void> _loadTags() async {
@@ -58,7 +59,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         _tagsAreLoading = false;
       });
     } catch (e) {
-      // Handle error
       setState(() {
         _tagsAreLoading = false;
       });
@@ -74,7 +74,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     });
   }
 
-  // --- MODIFIED: This function now handles CREATE and UPDATE ---
   Future<void> _uploadPost() async {
     if (_contentController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -118,13 +117,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       };
 
       if (_isEditMode) {
-        // --- UPDATE existing post ---
         await FirebaseFirestore.instance
             .collection('local_posts')
             .doc(widget.postToEdit!.id)
             .update(postData);
       } else {
-        // --- ADD new post ---
         postData['likeCount'] = 0;
         postData['commentCount'] = 0;
 
@@ -132,7 +129,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             .collection('local_posts')
             .add(postData);
 
-        // Update user's total post count
         await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
@@ -141,12 +137,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         });
       }
 
-      // --- THIS IS THE FIX ---
       // 5. Refresh the AuthProvider's local user data
       if (context.mounted) {
         await Provider.of<AuthProvider>(context, listen: false).refreshUser();
       }
-      // --- END OF FIX ---
 
       if (mounted) {
         Navigator.of(context).pop();
@@ -275,7 +269,15 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     onSelected: (selected) {
                       setState(() {
                         if (selected) {
-                          _selectedTags.add(tag);
+                          if (_selectedTags.length < 3) {
+                            _selectedTags.add(tag);
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content:
+                                      Text('You can only select up to 3 tags.')),
+                            );
+                          }
                         } else {
                           _selectedTags.remove(tag);
                         }

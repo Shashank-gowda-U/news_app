@@ -15,7 +15,7 @@ class NewsArticle {
   final int trueVotes;
   final int falseVotes;
 
-  NewsArticle({
+  const NewsArticle({
     required this.id,
     required this.title,
     required this.summary,
@@ -50,24 +50,7 @@ class NewsArticle {
       falseVotes: data['falseVotes'] ?? 0,
     );
   }
-} // <-- *** THE CLASS ENDS HERE ***
+}
 
-// --- FIX: The list must be defined OUTSIDE the class ---
-final List<NewsArticle> dummyAiNews = [
-  NewsArticle(
-    id: 'ai1',
-    title: 'Major Breakthrough in AI-Powered Fusion Energy',
-    summary:
-        'Scientists at a leading lab have used a new AI model to sustain a fusion reaction for a record-breaking 10 seconds, paving the way for clean energy.',
-    sourceUrl: 'https://example.com/fusion-news',
-    imageUrl: 'https://picsum.photos/seed/ai1/600/400',
-    publishedAt: DateTime.now().subtract(const Duration(hours: 2)),
-    topicTags: ['science', 'technology', 'energy'],
-    emotionalTag: 'uplifting',
-    likeCount: 1204,
-    commentCount: 88,
-    trueVotes: 210,
-    falseVotes: 12,
-  ),
-  // ... (the other dummy posts)
-];
+
+

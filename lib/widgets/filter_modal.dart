@@ -1,6 +1,5 @@
 // lib/widgets/filter_modal.dart
 import 'package:flutter/material.dart';
-// We no longer need cloud_firestore here
 
 class FilterModal extends StatefulWidget {
   final bool isForLocalAnchors;
@@ -19,7 +18,6 @@ class FilterModal extends StatefulWidget {
 class _FilterModalState extends State<FilterModal> {
   late String _selectedSort;
   late String? _selectedMood;
-  // We no longer need _selectedTag, _allTags, or _tagsAreLoading
 
   @override
   void initState() {
@@ -29,7 +27,6 @@ class _FilterModalState extends State<FilterModal> {
         : 'valid';
 
     _selectedMood = widget.currentFilters['selectedMood'];
-    // No need to load tags anymore
   }
 
   void _applyFilters() {
@@ -40,16 +37,15 @@ class _FilterModalState extends State<FilterModal> {
       sortField = 'publishedAt';
       sortDescending = false;
     } else if (_selectedSort == 'valid') {
-      sortField = 'trueVotes'; // Sort by trueVotes
+      sortField = 'trueVotes'; 
       sortDescending = true;
     }
 
-    // Return the new values
     Navigator.of(context).pop({
       'sortField': sortField,
       'sortDescending': sortDescending,
       'selectedMood': _selectedMood,
-      'selectedTag': null, // We no longer use this, so we return null
+      'selectedTag': null, 
     });
   }
 
@@ -95,21 +91,18 @@ class _FilterModalState extends State<FilterModal> {
               Wrap(
                 spacing: 8.0,
                 children: ['uplifting', 'neutral', 'bad_news'].map((mood) {
-                  // Renamed to avoid conflicts
-                  final moodValue = mood == 'bad_news' ? 'bad news' : mood;
+                  final isSelected = _selectedMood == mood;
                   return FilterChip(
-                    label: Text(moodValue),
-                    selected: _selectedMood == moodValue,
+                    label: Text(mood == 'bad_news' ? 'bad news' : mood),
+                    selected: isSelected,
                     onSelected: (selected) {
                       setState(() {
-                        _selectedMood = selected ? moodValue : null;
+                        _selectedMood = selected ? mood : null;
                       });
                     },
                   );
                 }).toList(),
               ),
-
-              // --- "FILTER BY TAG" SECTION HAS BEEN REMOVED ---
             ],
             const SizedBox(height: 24),
             ElevatedButton(

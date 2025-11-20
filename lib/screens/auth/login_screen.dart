@@ -12,18 +12,16 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // Removed dummy controllers, we will use Google Sign In mostly
+
   bool _isLoading = false;
 
-  void _signInWithGoogle() async {
+  Future<void> _signInWithGoogle() async {
     setState(() {
       _isLoading = true;
     });
 
-    // We use listen: false inside a function
     await Provider.of<AuthProvider>(context, listen: false).signInWithGoogle();
 
-    // The mounted check is good practice
     if (mounted) {
       setState(() {
         _isLoading = false;
@@ -51,8 +49,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 32),
 
-              // We won't use email/pass login for simplicity,
-              // but you could add it back easily.
+
 
               const SizedBox(height: 24),
 
@@ -69,8 +66,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // You can add a Google G logo here
-                      // Image.asset('assets/google_logo.png', height: 24),
                       const SizedBox(width: 12),
                       const Text('Sign in with Google'),
                     ],
