@@ -35,8 +35,6 @@ class _AiNewsFeedScreenState extends State<AiNewsFeedScreen> {
   bool _sortDescending = true;
   String? _selectedMood;
 
-
-
   Query _buildQuery(List<String> preferredTags) {
     Query query = FirebaseFirestore.instance.collection('articles');
 
@@ -44,8 +42,9 @@ class _AiNewsFeedScreenState extends State<AiNewsFeedScreen> {
       // Firestore 'array-contains-any' has a limit of 10 items.
       // We'll take the first 10 tags if the user has more.
       // A more advanced implementation might show a warning to the user.
-      final tagsToQuery =
-          preferredTags.length > 10 ? preferredTags.sublist(0, 10) : preferredTags;
+      final tagsToQuery = preferredTags.length > 10
+          ? preferredTags.sublist(0, 10)
+          : preferredTags;
       query = query.where('topicTags', arrayContainsAny: tagsToQuery);
     }
 
@@ -63,7 +62,6 @@ class _AiNewsFeedScreenState extends State<AiNewsFeedScreen> {
       'sortField': _sortField,
       'sortDescending': _sortDescending,
       'selectedMood': _selectedMood,
-
     };
 
     final newFilters = await showModalBottomSheet<Map<String, dynamic>>(
@@ -82,7 +80,6 @@ class _AiNewsFeedScreenState extends State<AiNewsFeedScreen> {
         _sortField = newFilters['sortField'];
         _sortDescending = newFilters['sortDescending'];
         _selectedMood = newFilters['selectedMood'];
-
       });
     }
   }
@@ -105,7 +102,6 @@ class _AiNewsFeedScreenState extends State<AiNewsFeedScreen> {
         ],
       ),
       body: StreamBuilder<QuerySnapshot>(
-
         stream: _buildQuery(preferredTags).snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {

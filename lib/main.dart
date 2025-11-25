@@ -1,19 +1,15 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:news_app/providers/auth_provider.dart';
+import 'package:news_app/screens/splash_screen.dart'; // Import Splash
 import 'package:news_app/theme/app_themes.dart';
 import 'package:news_app/theme/theme_provider.dart';
-import 'package:news_app/widgets/auth_wrapper.dart';
 import 'package:provider/provider.dart';
-
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // This line connects to your Firebase project using the
-  // lib/firebase_options.dart file that was generated.
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -41,7 +37,8 @@ class MyApp extends StatelessWidget {
       theme: AppThemes.lightTheme,
       darkTheme: AppThemes.darkTheme,
       themeMode: themeProvider.themeMode,
-      home: const AuthWrapper(),
+      // --- CHANGED: Start with Splash Screen ---
+      home: const SplashScreen(),
       debugShowCheckedModeBanner: false,
     );
   }

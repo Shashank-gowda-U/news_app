@@ -1,18 +1,12 @@
-// lib/screens/create/create_post_screen.dart
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloudinary_public/cloudinary_public.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:news_app/providers/auth_provider.dart';
 import 'package:news_app/models/local_anchor_post.dart';
-
-// TODO: ADD YOUR GEMINI API KEY HERE
-// This key is used for the content safety check.
-const String geminiApiKey = "TODO";
+import 'package:google_generative_ai/google_generative_ai.dart';
 
 class CreatePostScreen extends StatefulWidget {
   final LocalAnchorPost? postToEdit;
@@ -23,18 +17,19 @@ class CreatePostScreen extends StatefulWidget {
 }
 
 class _CreatePostScreenState extends State<CreatePostScreen> {
-  // TODO: Replace with your own Cloudinary credentials.
-  // WARNING: Do not hardcode credentials in production.
-  // Use a secure method like environment variables (flutter_dotenv) or a configuration file.
+  // --- CONFIGURATION ---
+  // TODO: Replace with your actual Cloudinary credentials
   final String _cloudName = "dpnbaiwbw";
   final String _uploadPreset = "news-ml";
+
+  // TODO: Replace with your actual Gemini API Key
+  final String _geminiApiKey = "AIzaSyBAoAfZhuAg_K2Yid3zfrwIURSod52vXss";
 
   late final CloudinaryPublic _cloudinary;
   final _contentController = TextEditingController();
 
   List<String> _availableTags = [];
   bool _tagsAreLoading = true;
-
   final Set<String> _selectedTags = {};
 
   XFile? _selectedImage;
@@ -42,15 +37,24 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   bool _isLoading = false;
   late bool _isEditMode;
 
+  // Location State
+  String? _selectedState;
+  String? _selectedDistrict;
+  List<String> _districts = [];
+  bool _isLoadingDistricts = false;
+
   @override
   void initState() {
     super.initState();
     _cloudinary = CloudinaryPublic(_cloudName, _uploadPreset, cache: false);
     _isEditMode = (widget.postToEdit != null);
+
     if (_isEditMode) {
       _contentController.text = widget.postToEdit!.content;
       _selectedTags.addAll(widget.postToEdit!.tags);
       _existingImageUrl = widget.postToEdit!.imageUrl;
+      // Note: For editing, we aren't parsing the old "State, District" string back into dropdowns
+      // for simplicity. The user will need to re-select location if they want to change it.
     }
     _loadTags();
   }
@@ -59,90 +63,151 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     try {
       final snapshot =
           await FirebaseFirestore.instance.collection('tags').get();
-      final tags = snapshot.docs.map((doc) => doc['name'] as String).toList();
-      setState(() {
-        _availableTags = tags;
-        _tagsAreLoading = false;
-      });
+
+      // Handle cases where the 'name' field might be missing or not a string
+      final tags = snapshot.docs
+          .map((doc) => doc.data()['name'])
+          .where((name) => name != null && name is String)
+          .cast<String>()
+          .toList();
+
+      if (mounted) {
+        setState(() {
+          _availableTags = tags;
+          _tagsAreLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _tagsAreLoading = false;
-      });
+      // ignore: avoid_print
+      print("Error loading tags: $e");
+      if (mounted) {
+        setState(() {
+          _tagsAreLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _onStateSelected(String stateName) async {
+    setState(() {
+      _selectedState = stateName;
+      _selectedDistrict = null;
+      _isLoadingDistricts = true;
+      _districts = [];
+    });
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('locations')
+          .doc(stateName)
+          .get();
+      final data = doc.data();
+      if (mounted && data != null && data['districts'] != null) {
+        setState(() {
+          _districts = List<String>.from(data['districts']);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load districts: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoadingDistricts = false);
+    }
+  }
+
+  Future<bool> _analyzeContentSafety(String content) async {
+    if (_geminiApiKey == "YOUR_GEMINI_API_KEY") {
+      // Bypass check if key is not set yet, so you can test UI
+      return true;
+    }
+
+    try {
+      final model =
+          GenerativeModel(model: 'gemini-2.5-flash', apiKey: _geminiApiKey);
+      final prompt = '''
+        You are a content moderator. Analyze this text for:
+        1. Hate speech / Violence
+        2. Explicit content
+        3. Dangerous misinformation
+        
+        Text: "$content"
+        
+        Return valid JSON only: {"safe": boolean}
+      ''';
+
+      final response = await model.generateContent([Content.text(prompt)]);
+      final text = response.text ?? '';
+
+      // Simple string check for JSON response
+      if (text.contains('"safe": true')) return true;
+      if (text.contains('"safe": false')) return false;
+
+      // Default to safe if response is weird
+      return true;
+    } catch (e) {
+      // Fail open (allow post) if API fails to avoid blocking user during outages
+      return true;
     }
   }
 
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-    setState(() {
-      _selectedImage = image;
-      _existingImageUrl = null;
-    });
-  }
-
-  Future<bool> _analyzeContentSafety(String text) async {
-    if (geminiApiKey == "TODO" || geminiApiKey.isEmpty) {
-      return true; // Bypass check if API key isn't set
-    }
-    try {
-      // Using a model fine-tuned for safety is better, but gemini-pro is a good general start.
-      final model = GenerativeModel(model: 'gemini-pro', apiKey: geminiApiKey);
-      final prompt =
-          'Analyze the following text for hate speech, harassment, or dangerous content. Respond with only the single word "SAFE" or the single word "UNSAFE". Text: "$text"';
-      final content = [Content.text(prompt)];
-      final response = await model.generateContent(content);
-
-      return response.text?.trim().toUpperCase() == 'SAFE';
-    } catch (e) {
-      // If the API call fails, log the error but allow the post.
-      // In a real-world app, you might want to log this to a monitoring service.
-      // ignore: avoid_print
-      debugPrint("Content safety check failed, allowing post. Error: $e");
-      return true;
+    if (image != null) {
+      setState(() {
+        _selectedImage = image;
+        _existingImageUrl = null;
+      });
     }
   }
 
   Future<void> _uploadPost() async {
     if (_contentController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Please write some content for your post.')),
+        const SnackBar(content: Text('Please write some content.')),
       );
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
-
-    // --- TASK 6: AI Content Safety Check ---
-    final isSafe = await _analyzeContentSafety(_contentController.text);
-    if (!isSafe && mounted) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Content Flagged'),
-          content: const Text(
-              'Our AI has flagged this content as potentially unsafe. Please revise your post.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
+    // Validation: Ensure Location is selected (unless editing and keeping old)
+    if (!_isEditMode && (_selectedState == null || _selectedDistrict == null)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select your location.')),
       );
-      setState(() {
-        _isLoading = false;
-      });
-      return; // Abort the upload
+      return;
     }
-    // --- END OF TASK 6 ---
+
+    setState(() => _isLoading = true);
+
+    // 1. AI Safety Check
+    bool isSafe = await _analyzeContentSafety(_contentController.text);
+    if (!isSafe) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Content Warning'),
+            content: const Text(
+                'Our AI system flagged this post as potentially unsafe or harmful. Please revise your content.'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx), child: const Text('OK'))
+            ],
+          ),
+        );
+      }
+      return;
+    }
 
     try {
       String? imageUrl = _existingImageUrl;
       String? publicId = widget.postToEdit?.cloudinaryPublicId;
 
+      // 2. Image Upload
       if (_selectedImage != null) {
         CloudinaryResponse response = await _cloudinary.uploadFile(
           CloudinaryFile.fromFile(_selectedImage!.path,
@@ -152,9 +217,18 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         publicId = response.publicId;
       }
 
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final user = authProvider.user;
+      final user = Provider.of<AuthProvider>(context, listen: false).user;
       if (user == null) throw Exception("No user logged in.");
+
+      // Use new selection if made, otherwise fallback (mostly for edit mode logic)
+      String finalLocation;
+      if (_selectedState != null && _selectedDistrict != null) {
+        finalLocation = "$_selectedDistrict, $_selectedState";
+      } else if (_isEditMode) {
+        finalLocation = widget.postToEdit!.location;
+      } else {
+        finalLocation = "Unknown";
+      }
 
       final Map<String, dynamic> postData = {
         'content': _contentController.text,
@@ -165,27 +239,26 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         'anchorId': user.uid,
         'anchorName': user.name,
         'anchorProfilePicUrl': user.profilePicUrl,
-        'location': user.location,
-        'trueVotes': 0, // Initialize votes
-        'falseVotes': 0,
+        'location': finalLocation,
       };
 
       if (_isEditMode) {
-        // We don't re-initialize votes on edit
-        postData.remove('trueVotes');
-        postData.remove('falseVotes');
         await FirebaseFirestore.instance
             .collection('local_posts')
             .doc(widget.postToEdit!.id)
             .update(postData);
       } else {
+        // New Post Defaults
         postData['likeCount'] = 0;
         postData['commentCount'] = 0;
+        postData['trueVotes'] = 0;
+        postData['falseVotes'] = 0;
 
         await FirebaseFirestore.instance
             .collection('local_posts')
             .add(postData);
 
+        // Increment user post count
         await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
@@ -194,42 +267,30 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         });
       }
 
-      // 5. Refresh the AuthProvider's local user data
-      if (context.mounted) {
-        await Provider.of<AuthProvider>(context, listen: false).refreshUser();
-      }
-
       if (mounted) {
+        await Provider.of<AuthProvider>(context, listen: false).refreshUser();
         Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Post created successfully!')),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to post: ${e.toString()}')),
-        );
-        setState(() {
-          _isLoading = false;
-        });
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
+        setState(() => _isLoading = false);
       }
     }
   }
 
   Widget _buildImagePreview() {
     if (_selectedImage != null) {
-      return Image.file(
-        File(_selectedImage!.path),
-        width: double.infinity,
-        height: 200,
-        fit: BoxFit.cover,
-      );
+      return Image.file(File(_selectedImage!.path),
+          width: double.infinity, height: 200, fit: BoxFit.cover);
     }
     if (_existingImageUrl != null) {
-      return Image.network(
-        _existingImageUrl!,
-        width: double.infinity,
-        height: 200,
-        fit: BoxFit.cover,
-      );
+      return Image.network(_existingImageUrl!,
+          width: double.infinity, height: 200, fit: BoxFit.cover);
     }
     return const SizedBox.shrink();
   }
@@ -242,23 +303,19 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         actions: [
           if (_isLoading)
             const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(color: Colors.white),
-              ),
-            )
+                padding: EdgeInsets.all(16.0),
+                child: SizedBox(
+                    width: 24, height: 24, child: CircularProgressIndicator()))
           else
             TextButton(
-              onPressed: _uploadPost,
-              child: Text(_isEditMode ? 'Update' : 'Post'),
-            ),
+                onPressed: _uploadPost,
+                child: Text(_isEditMode ? 'Update' : 'Post')),
         ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             TextField(
               controller: _contentController,
@@ -266,16 +323,17 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 hintText: 'What\'s happening in your area?',
                 border: InputBorder.none,
               ),
-              maxLines: 8,
-              autofocus: true,
+              maxLines: 6,
             ),
+
+            const SizedBox(height: 16),
+
             if (_selectedImage != null || _existingImageUrl != null)
               Stack(
                 children: [
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: _buildImagePreview(),
-                  ),
+                      borderRadius: BorderRadius.circular(8),
+                      child: _buildImagePreview()),
                   Positioned(
                     top: 8,
                     right: 8,
@@ -284,36 +342,75 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                         _selectedImage = null;
                         _existingImageUrl = null;
                       }),
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          color: Colors.black54,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.close, color: Colors.white),
-                      ),
+                      child: const CircleAvatar(
+                          backgroundColor: Colors.black54,
+                          child: Icon(Icons.close, color: Colors.white)),
                     ),
-                  )
+                  ),
                 ],
               ),
-            const Divider(),
+
+            const Divider(height: 32),
+
+            // Location Dropdowns
+            if (!_isEditMode) ...[
+              const Text("Location",
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              FutureBuilder<QuerySnapshot>(
+                future:
+                    FirebaseFirestore.instance.collection('locations').get(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) return const LinearProgressIndicator();
+                  final states = snapshot.data!.docs.map((d) => d.id).toList();
+                  return DropdownButtonFormField<String>(
+                    value: _selectedState,
+                    hint: const Text('Select State'),
+                    decoration:
+                        const InputDecoration(border: OutlineInputBorder()),
+                    items: states
+                        .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                        .toList(),
+                    onChanged: (val) => _onStateSelected(val!),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              if (_selectedState != null)
+                _isLoadingDistricts
+                    ? const LinearProgressIndicator()
+                    : DropdownButtonFormField<String>(
+                        value: _selectedDistrict,
+                        hint: const Text('Select District'),
+                        decoration:
+                            const InputDecoration(border: OutlineInputBorder()),
+                        items: _districts
+                            .map((d) =>
+                                DropdownMenuItem(value: d, child: Text(d)))
+                            .toList(),
+                        onChanged: (val) =>
+                            setState(() => _selectedDistrict = val),
+                      ),
+              const SizedBox(height: 24),
+            ],
+
             OutlinedButton.icon(
               onPressed: _pickImage,
-              icon: const Icon(Icons.image_outlined),
-              label: Text(_selectedImage == null && _existingImageUrl == null
-                  ? 'Add Image (Optional)'
-                  : 'Change Image'),
+              icon: const Icon(Icons.image),
+              label: const Text('Add Image'),
               style: OutlinedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 50),
-              ),
+                  minimumSize: const Size(double.infinity, 50)),
             ),
-            const SizedBox(height: 16),
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text('Select tags (up to 3)'),
-            ),
+
+            const SizedBox(height: 24),
+            const Text('Select Tags (Max 3)',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
+
             if (_tagsAreLoading)
               const Center(child: CircularProgressIndicator())
+            else if (_availableTags.isEmpty)
+              const Text("No tags available.")
             else
               Wrap(
                 spacing: 8.0,
@@ -330,10 +427,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                             _selectedTags.add(tag);
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content:
-                                      Text('You can only select up to 3 tags.')),
-                            );
+                                const SnackBar(
+                                    content: Text(
+                                        'You can only select up to 3 tags.')));
                           }
                         } else {
                           _selectedTags.remove(tag);
@@ -343,6 +439,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   );
                 }).toList(),
               ),
+
+            const SizedBox(height: 40), // Bottom padding
           ],
         ),
       ),

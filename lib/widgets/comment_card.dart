@@ -5,14 +5,13 @@ class CommentCard extends StatelessWidget {
   final String author;
   final String comment;
   final int likes;
-  final int replies;
+  // Removed "replies" as requested
 
   const CommentCard({
     super.key,
     required this.author,
     required this.comment,
     required this.likes,
-    required this.replies,
   });
 
   @override
@@ -20,33 +19,25 @@ class CommentCard extends StatelessWidget {
     return Card(
       elevation: 0,
       color: Theme.of(context).colorScheme.surface,
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(8),
+        title: Text(
+          author,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4.0),
+          child: Text(comment),
+        ),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            const Icon(Icons.thumb_up_outlined, size: 16, color: Colors.grey),
+            const SizedBox(height: 2),
             Text(
-              author,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(comment),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                IconButton(
-                  onPressed: () {},
-                  icon: const Icon(Icons.thumb_up_outlined, size: 18),
-                ),
-                Text(likes.toString()),
-                const SizedBox(width: 24),
-                IconButton(
-                  onPressed: () {},
-                  icon: const Icon(Icons.reply_outlined, size: 18),
-                ),
-                if (replies > 0) Text('$replies Replies'),
-              ],
+              likes.toString(),
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ],
         ),

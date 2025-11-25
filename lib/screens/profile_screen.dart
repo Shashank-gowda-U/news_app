@@ -1,6 +1,6 @@
-// lib/screens/profile_screen.dart
 import 'package:flutter/material.dart';
 import 'package:news_app/providers/auth_provider.dart';
+import 'package:news_app/screens/admin_screen.dart'; // Import the new screen
 import 'package:news_app/screens/create/my_posts_screen.dart';
 import 'package:news_app/screens/edit_profile_screen.dart';
 import 'package:news_app/screens/edit_tags_screen.dart';
@@ -12,6 +12,12 @@ import 'package:news_app/models/user_model.dart';
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
+  // --- CONFIGURATION ---
+  // REPLACE THIS WITH YOUR EMAIL
+  final String _adminEmail =
+      "shashankgowda1236628@gmail.com"; // Or whatever email you use
+  // ---------------------
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
@@ -19,10 +25,11 @@ class ProfileScreen extends StatelessWidget {
     final UserModel? user = authProvider.user;
 
     if (user == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+
+    // Check if current user is the admin
+    final bool isAdmin = (user.email == _adminEmail);
 
     return Scaffold(
       appBar: AppBar(
@@ -32,8 +39,7 @@ class ProfileScreen extends StatelessWidget {
             icon: const Icon(Icons.edit_outlined),
             onPressed: () {
               Navigator.of(context).push(MaterialPageRoute(
-                builder: (context) => const EditProfileScreen(),
-              ));
+                  builder: (context) => const EditProfileScreen()));
             },
             tooltip: 'Edit Profile',
           ),
@@ -51,7 +57,6 @@ class ProfileScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
             Center(
               child: Column(
                 children: [
@@ -60,29 +65,45 @@ class ProfileScreen extends StatelessWidget {
                     backgroundImage: NetworkImage(user.profilePicUrl),
                   ),
                   const SizedBox(height: 12),
-                  Text(
-                    user.name,
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  Text(
-                    user.email,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  Text(
-                    user.location,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
+                  Text(user.name,
+                      style: Theme.of(context).textTheme.headlineSmall),
+                  Text(user.email,
+                      style: Theme.of(context).textTheme.bodyMedium),
+                  Text(user.location,
+                      style: Theme.of(context).textTheme.bodyMedium),
                 ],
               ),
             ),
             const Divider(height: 32),
 
+            // --- ADMIN SECTION (Only visible to you) ---
+            if (isAdmin) ...[
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.red.withOpacity(0.3)),
+                ),
+                margin: const EdgeInsets.only(bottom: 24),
+                child: ListTile(
+                  leading:
+                      const Icon(Icons.admin_panel_settings, color: Colors.red),
+                  title: const Text("Admin Panel",
+                      style: TextStyle(
+                          color: Colors.red, fontWeight: FontWeight.bold)),
+                  subtitle: const Text("Approve anchor requests"),
+                  trailing: const Icon(Icons.chevron_right, color: Colors.red),
+                  onTap: () {
+                    Navigator.of(context).push(MaterialPageRoute(
+                        builder: (context) => const AdminScreen()));
+                  },
+                ),
+              ),
+            ],
 
             if (user.isAnchor) ...[
-              Text(
-                'Anchor Dashboard',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
+              Text('Anchor Dashboard',
+                  style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -100,8 +121,7 @@ class ProfileScreen extends StatelessWidget {
                 subtitle: 'Edit or delete your published posts',
                 onTap: () {
                   Navigator.of(context).push(MaterialPageRoute(
-                    builder: (context) => const MyPostsScreen(),
-                  ));
+                      builder: (context) => const MyPostsScreen()));
                 },
               ),
               const SizedBox(height: 16),
@@ -116,11 +136,8 @@ class ProfileScreen extends StatelessWidget {
               const Divider(height: 32),
             ],
 
-
-            Text(
-              'My Preferences',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text('My Preferences',
+                style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
             _buildInfoCard(
               context,
@@ -129,12 +146,10 @@ class ProfileScreen extends StatelessWidget {
               subtitle: user.preferredTags.join(', '),
               onTap: () {
                 Navigator.of(context).push(MaterialPageRoute(
-                  builder: (context) => const EditTagsScreen(),
-                ));
+                    builder: (context) => const EditTagsScreen()));
               },
             ),
             const SizedBox(height: 16),
-
             _buildInfoCard(
               context,
               icon: Icons.people_alt_outlined,
@@ -142,16 +157,12 @@ class ProfileScreen extends StatelessWidget {
               subtitle: 'View anchors you follow',
               onTap: () {
                 Navigator.of(context).push(MaterialPageRoute(
-                  builder: (context) => const FollowingScreen(),
-                ));
+                    builder: (context) => const FollowingScreen()));
               },
             ),
 
             const Divider(height: 32),
-            Text(
-              'App Settings',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text('App Settings', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -162,10 +173,7 @@ class ProfileScreen extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Dark Mode',
-                    style: TextStyle(fontSize: 16),
-                  ),
+                  const Text('Dark Mode', style: TextStyle(fontSize: 16)),
                   Switch(
                     value: themeProvider.isDarkMode,
                     onChanged: (value) {
@@ -185,15 +193,10 @@ class ProfileScreen extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          value,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
+        Text(value,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 14, color: Colors.grey),
-        ),
+        Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
       ],
     );
   }

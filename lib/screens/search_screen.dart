@@ -23,14 +23,19 @@ class _SearchScreenState extends State<SearchScreen> {
       return;
     }
 
-    final lowercaseQuery = query.toLowerCase();
+    // LOGIC UPDATE: We are now searching by the 'name' field directly.
+    // We do NOT convert to lowercase because the 'name' field in Firestore
+    // likely contains capital letters (e.g., "John Doe").
+    // Firestore string queries are case-sensitive.
 
     setState(() {
       _resultsStream = FirebaseFirestore.instance
           .collection('users')
+          // This ensures we only find users who are actually Anchors
           .where('isAnchor', isEqualTo: true)
-          .where('searchName', isGreaterThanOrEqualTo: lowercaseQuery)
-          .where('searchName', isLessThanOrEqualTo: '$lowercaseQuery\uf8ff')
+          // We search the 'name' field instead of 'searchName'
+          .where('name', isGreaterThanOrEqualTo: query)
+          .where('name', isLessThanOrEqualTo: '$query\uf8ff')
           .limit(20)
           .snapshots();
     });
@@ -44,7 +49,7 @@ class _SearchScreenState extends State<SearchScreen> {
           controller: _searchController,
           autofocus: true,
           decoration: const InputDecoration(
-            hintText: 'Search for users...',
+            hintText: 'Search for anchors...',
             border: InputBorder.none,
           ),
           onChanged: _performSearch,
@@ -58,7 +63,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 if (snapshot.hasError) {
                   return const Center(
                       child: Text(
-                          'Error. You may need to create a Firestore index for "users" on the "name" field.'));
+                          'Error. You may need to create a Firestore index for "users" on the "name" field. Check debug console.'));
                 }
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());

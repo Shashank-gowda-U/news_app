@@ -19,72 +19,58 @@ class PublicProfileScreen extends StatefulWidget {
 class _PublicProfileScreenState extends State<PublicProfileScreen> {
   bool _isTogglingFollow = false;
 
-  Future<void> _toggleFollow(
-      BuildContext context, String currentUserId, bool isFollowing) async {
-    setState(() {
-      _isTogglingFollow = true;
-    });
+  Future<void> _toggleFollow(bool isFollowing) async {
+    setState(() => _isTogglingFollow = true);
+    final currentUser = Provider.of<AuthProvider>(context, listen: false).user;
+    if (currentUser == null) return;
 
     final userRef =
-        FirebaseFirestore.instance.collection('users').doc(currentUserId);
+        FirebaseFirestore.instance.collection('users').doc(currentUser.uid);
     final anchorRef =
         FirebaseFirestore.instance.collection('users').doc(widget.userId);
 
-    // Use a write batch for an atomic operation
-    final batch = FirebaseFirestore.instance.batch();
-
     try {
-      if (isFollowing) {
-        batch.update(userRef, {
-          'followingAnchors': FieldValue.arrayRemove([widget.userId])
-        });
-        batch.update(anchorRef, {'totalFollowers': FieldValue.increment(-1)});
-      } else {
-        batch.update(userRef, {
-          'followingAnchors': FieldValue.arrayUnion([widget.userId])
-        });
-        batch.update(anchorRef, {'totalFollowers': FieldValue.increment(1)});
-      }
-
-      await batch.commit();
-
-      if (mounted) {
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        if (isFollowing) {
+          transaction.update(userRef, {
+            'followingAnchors': FieldValue.arrayRemove([widget.userId])
+          });
+          transaction
+              .update(anchorRef, {'totalFollowers': FieldValue.increment(-1)});
+        } else {
+          transaction.update(userRef, {
+            'followingAnchors': FieldValue.arrayUnion([widget.userId])
+          });
+          transaction
+              .update(anchorRef, {'totalFollowers': FieldValue.increment(1)});
+        }
+      });
+      if (mounted)
         await Provider.of<AuthProvider>(context, listen: false).refreshUser();
-      }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update follow status: $e')),
-        );
-      }
+      // Handle error
     } finally {
-      if (mounted) {
-        setState(() {
-          _isTogglingFollow = false;
-        });
-      }
+      if (mounted) setState(() => _isTogglingFollow = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-    final currentUserId = authProvider.user?.uid;
+    final currentUser = Provider.of<AuthProvider>(context).user;
     final bool isFollowing =
-        authProvider.user?.followingAnchors.contains(widget.userId) ?? false;
-    final bool isMe = currentUserId == widget.userId;
+        currentUser?.followingAnchors.contains(widget.userId) ?? false;
+    final bool isMe = currentUser?.uid == widget.userId;
 
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(title: const Text("Anchor Profile")),
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
             .collection('users')
             .doc(widget.userId)
             .snapshots(),
         builder: (context, userSnapshot) {
-          if (!userSnapshot.hasData) {
+          if (!userSnapshot.hasData)
             return const Center(child: CircularProgressIndicator());
-          }
           final user = UserModel.fromFirestore(userSnapshot.data!);
 
           return NestedScrollView(
@@ -97,18 +83,14 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                       child: Column(
                         children: [
                           CircleAvatar(
-                            radius: 50,
-                            backgroundImage: NetworkImage(user.profilePicUrl),
-                          ),
+                              radius: 50,
+                              backgroundImage:
+                                  NetworkImage(user.profilePicUrl)),
                           const SizedBox(height: 12),
-                          Text(
-                            user.name,
-                            style: Theme.of(context).textTheme.headlineSmall,
-                          ),
-                          Text(
-                            user.location,
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
+                          Text(user.name,
+                              style: Theme.of(context).textTheme.headlineSmall),
+                          Text(user.location,
+                              style: Theme.of(context).textTheme.bodyMedium),
                           const SizedBox(height: 16),
                           if (user.isAnchor)
                             Row(
@@ -123,29 +105,27 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                               ],
                             ),
                           const SizedBox(height: 16),
-                          if (!isMe && user.isAnchor && currentUserId != null)
+
+                          // --- NEW: Follow Button ---
+                          if (!isMe && user.isAnchor && currentUser != null)
                             _isTogglingFollow
                                 ? const CircularProgressIndicator()
                                 : ElevatedButton(
-                                    child:
-                                        Text(isFollowing ? 'Unfollow' : 'Follow'),
-                                    onPressed: () {
-                                      _toggleFollow(
-                                          context, currentUserId, isFollowing);
-                                    },
+                                    onPressed: () => _toggleFollow(isFollowing),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: isFollowing
+                                          ? Colors.grey
+                                          : Theme.of(context).primaryColor,
+                                      foregroundColor: Colors.white,
+                                      minimumSize: const Size(120, 40),
+                                    ),
+                                    child: Text(
+                                        isFollowing ? 'Unfollow' : 'Follow'),
                                   ),
                         ],
                       ),
                     ),
                     const Divider(),
-                    if (user.isAnchor)
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Text(
-                          'Posts by ${user.name}',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                      ),
                   ]),
                 ),
               ];
@@ -158,13 +138,11 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                         .orderBy('publishedAt', descending: true)
                         .snapshots(),
                     builder: (context, postSnapshot) {
-                      if (!postSnapshot.hasData) {
+                      if (!postSnapshot.hasData)
                         return const Center(child: CircularProgressIndicator());
-                      }
-                      if (postSnapshot.data!.docs.isEmpty) {
+                      if (postSnapshot.data!.docs.isEmpty)
                         return const Center(
                             child: Text('This anchor has not posted yet.'));
-                      }
                       return ListView.builder(
                         itemCount: postSnapshot.data!.docs.length,
                         itemBuilder: (context, index) {
@@ -173,9 +151,8 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                           return GestureDetector(
                             onTap: () {
                               Navigator.of(context).push(MaterialPageRoute(
-                                builder: (context) =>
-                                    PostDetailScreen(post: post),
-                              ));
+                                  builder: (context) =>
+                                      PostDetailScreen(post: post)));
                             },
                             child: LocalAnchorPostCard(post: post),
                           );
@@ -194,15 +171,10 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          value,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
+        Text(value,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 14, color: Colors.grey),
-        ),
+        Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
       ],
     );
   }

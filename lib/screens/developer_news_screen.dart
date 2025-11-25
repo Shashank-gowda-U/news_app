@@ -1,10 +1,10 @@
 // lib/screens/developer_news_screen.dart
 import 'package:flutter/material.dart';
-
 import 'package:news_app/models/dev_update.dart';
+import 'package:news_app/providers/auth_provider.dart';
 import 'package:news_app/widgets/dev_story_card.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
+import 'package:provider/provider.dart';
 
 class DeveloperNewsScreen extends StatefulWidget {
   const DeveloperNewsScreen({super.key});
@@ -14,26 +14,43 @@ class DeveloperNewsScreen extends StatefulWidget {
 }
 
 class _DeveloperNewsScreenState extends State<DeveloperNewsScreen> {
+  Future<void> _toggleFollow(String storyId, bool isCurrentlyFollowing) async {
+    final user = Provider.of<AuthProvider>(context, listen: false).user;
+    if (user == null) return;
 
-  final Set<String> _followedStories = {
-    'FzvMBMRx5UN5U5dmbOSI'
-  }; // <-- TODO: Replace this with a real ID from your 'dev_stories' collection
+    final userRef =
+        FirebaseFirestore.instance.collection('users').doc(user.uid);
 
-  void _toggleFollow(String storyId) {
-    setState(() {
-      if (_followedStories.contains(storyId)) {
-        _followedStories.remove(storyId);
+    try {
+      if (isCurrentlyFollowing) {
+        // Unfollow
+        await userRef.update({
+          'followedStories': FieldValue.arrayRemove([storyId])
+        });
       } else {
-        _followedStories.add(storyId);
+        // Follow
+        await userRef.update({
+          'followedStories': FieldValue.arrayUnion([storyId])
+        });
       }
-    });
-    // TODO: Save this change to Firestore
+      // Refresh local state
+      if (mounted) {
+        await Provider.of<AuthProvider>(context, listen: false).refreshUser();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating follow: $e')),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-
-    final followedStoriesList = _followedStories.toList();
+    final user = Provider.of<AuthProvider>(context).user;
+    // Get the real list from Firestore
+    final List<String> followedStoriesList = user?.followedStories ?? [];
 
     return DefaultTabController(
       length: 2,
@@ -49,7 +66,7 @@ class _DeveloperNewsScreenState extends State<DeveloperNewsScreen> {
         ),
         body: TabBarView(
           children: [
-
+            // --- TAB 1: ALL STORIES ---
             StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('dev_stories')
@@ -70,16 +87,20 @@ class _DeveloperNewsScreenState extends State<DeveloperNewsScreen> {
                     itemBuilder: (context, index) {
                       final story = DevUpdateStory.fromFirestore(
                           snapshot.data!.docs[index]);
+
+                      final isFollowed = followedStoriesList.contains(story.id);
+
                       return DevStoryCard(
                         story: story,
-                        isFollowed: _followedStories.contains(story.id),
-                        onFollowToggle: () => _toggleFollow(story.id),
+                        isFollowed: isFollowed,
+                        onFollowToggle: () =>
+                            _toggleFollow(story.id, isFollowed),
                       );
                     },
                   );
                 }),
 
-
+            // --- TAB 2: FOLLOWING ---
             if (followedStoriesList.isEmpty)
               const Center(
                 child: Padding(
@@ -91,7 +112,6 @@ class _DeveloperNewsScreenState extends State<DeveloperNewsScreen> {
                 ),
               )
             else
-
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('dev_stories')
@@ -115,10 +135,12 @@ class _DeveloperNewsScreenState extends State<DeveloperNewsScreen> {
                     itemBuilder: (context, index) {
                       final story = DevUpdateStory.fromFirestore(
                           snapshot.data!.docs[index]);
+
+                      // In this tab, they are all followed
                       return DevStoryCard(
                         story: story,
                         isFollowed: true,
-                        onFollowToggle: () => _toggleFollow(story.id),
+                        onFollowToggle: () => _toggleFollow(story.id, true),
                       );
                     },
                   );
