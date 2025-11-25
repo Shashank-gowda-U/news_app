@@ -19,11 +19,11 @@ class CreatePostScreen extends StatefulWidget {
 class _CreatePostScreenState extends State<CreatePostScreen> {
   // --- CONFIGURATION ---
   // TODO: Replace with your actual Cloudinary credentials
-  final String _cloudName = "dpnbaiwbw";
-  final String _uploadPreset = "news-ml";
+  final String _cloudName = "";
+  final String _uploadPreset = "";
 
   // TODO: Replace with your actual Gemini API Key
-  final String _geminiApiKey = "AIzaSyBAoAfZhuAg_K2Yid3zfrwIURSod52vXss";
+  final String _geminiApiKey = "";
 
   late final CloudinaryPublic _cloudinary;
   final _contentController = TextEditingController();
